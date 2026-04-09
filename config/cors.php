@@ -19,9 +19,15 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:3000', 'http://localhost:3001'],
+    'allowed_origins' => array_filter([
+        'http://localhost:3000',
+        'http://localhost:3001',
+        env('FRONTEND_URL'),
+    ]),
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '#^https://nexu-web.*\.vercel\.app$#',
+    ],
 
     'allowed_headers' => ['*'],
 
