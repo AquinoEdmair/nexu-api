@@ -51,7 +51,7 @@ RUN composer dump-autoload --optimize \
     && composer run-script post-autoload-dump
 
 # Build frontend assets (Filament)
-RUN npm ci && npm run build && rm -rf node_modules
+RUN npm install && npm run build && rm -rf node_modules
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
