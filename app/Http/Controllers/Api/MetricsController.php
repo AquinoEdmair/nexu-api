@@ -31,7 +31,7 @@ final class MetricsController extends Controller
                 'active_investors' => (int) Wallet::where('balance_in_operation', '>', 0)->count(),
                 'volume_24h'       => (float) \App\Models\DepositInvoice::where('status', 'completed')
                     ->where('created_at', '>=', now()->subDay())
-                    ->sum('amount'),
+                    ->sum('amount_received'),
             ];
         });
 
