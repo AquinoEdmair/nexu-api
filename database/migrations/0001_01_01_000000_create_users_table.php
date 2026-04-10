@@ -26,9 +26,12 @@ return new class extends Migration
             $table->rememberToken();
             $table->timestamps();
 
-            $table->foreign('referred_by')->references('id')->on('users')->nullOnDelete();
             $table->index('status');
             $table->index('created_at');
+        });
+
+        Schema::table('users', function (Blueprint $table): void {
+            $table->foreign('referred_by')->references('id')->on('users')->nullOnDelete();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table): void {
