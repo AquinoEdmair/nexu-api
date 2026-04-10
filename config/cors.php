@@ -26,7 +26,7 @@ return [
     ]),
 
     'allowed_origins_patterns' => [
-        '#^https://nexu-web.*\.vercel\.app$#',
+        '#^https://.*\.vercel\.app$#',
     ],
 
     'allowed_headers' => ['*'],
