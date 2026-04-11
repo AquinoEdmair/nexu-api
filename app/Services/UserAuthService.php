@@ -9,6 +9,7 @@ use App\Models\Wallet;
 use App\Models\Referral;
 use App\Models\CommissionConfig;
 use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -83,6 +84,9 @@ final class UserAuthService
 
             return $user;
         });
+
+        // Fires Laravel's built-in listener that calls sendEmailVerificationNotification()
+        event(new Registered($user));
 
         $token = $user->createToken('api')->plainTextToken;
 

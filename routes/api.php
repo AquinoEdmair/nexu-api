@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BalanceController;
 use App\Http\Controllers\Api\DepositController;
+use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\MetricsController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\WebhookController;
@@ -27,7 +28,13 @@ Route::prefix('auth')->middleware('throttle:10,1')->group(function (): void {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+    Route::post('/email/resend', [EmailVerificationController::class, 'resendByEmail']);
 });
+
+// Email verification link from the email (signed URL, no auth)
+Route::get('/auth/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+    ->middleware(['signed', 'throttle:6,1'])
+    ->name('verification.verify');
 
 // ── Metrics (public) ─────────────────────────────────────────────────────
 Route::prefix('metrics')->group(function (): void {
@@ -48,6 +55,8 @@ Route::middleware(['auth:api', 'user.active'])->group(function (): void {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::post('/refresh', [AuthController::class, 'refresh']);
         Route::get('/me', [AuthController::class, 'me']);
+        Route::post('/email/verification-notification', [EmailVerificationController::class, 'resend'])
+            ->middleware('throttle:6,1');
     });
 
     // Balance
