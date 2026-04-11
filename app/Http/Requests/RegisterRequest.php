@@ -22,7 +22,17 @@ final class RegisterRequest extends FormRequest
             'email'         => ['required', 'string', 'email', 'max:150', 'unique:users,email'],
             'password'      => ['required', 'string', 'confirmed', Password::min(8)->mixedCase()->numbers()],
             'phone'         => ['nullable', 'string', 'max:20'],
-            'referral_code' => ['nullable', 'string', 'max:10'],
+            'referral_code' => [
+                'nullable', 
+                'string', 
+                'max:10',
+                function ($attribute, $value, $fail) {
+                    $referrer = \App\Models\User::where('referral_code', strtoupper(trim($value)))->first();
+                    if ($referrer && strtolower($referrer->email) === strtolower($this->email)) {
+                        $fail('No puedes utilizar tu propio código de referido para registrarte.');
+                    }
+                }
+            ],
         ];
     }
 

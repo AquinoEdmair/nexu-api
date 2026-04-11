@@ -168,7 +168,9 @@ final class UserAuthService
         // Prevent self-referral (same email address).
         if ($referrer !== null && $registrantEmail !== null
             && strtolower($referrer->email) === strtolower($registrantEmail)) {
-            return null;
+            throw ValidationException::withMessages([
+                'referral_code' => ['No puedes utilizar tu propio código de referido para registrarte.'],
+            ]);
         }
 
         return $referrer;

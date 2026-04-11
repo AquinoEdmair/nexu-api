@@ -289,9 +289,11 @@ class ReferralServiceTest extends TestCase
         // self-referral guard directly without triggering the unique-email DB constraint.
         $method = new \ReflectionMethod(UserAuthService::class, 'resolveReferrer');
 
-        // Same email as the code owner → should return null (self-referral blocked).
-        $result = $method->invoke($authService, $existingUser->referral_code, 'alice@nexu.com');
-        $this->assertNull($result);
+        // Same email as the code owner → should throw ValidationException (self-referral blocked).
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->expectExceptionMessage('No puedes utilizar tu propio código de referido para registrarte.');
+        
+        $method->invoke($authService, $existingUser->referral_code, 'alice@nexu.com');
 
         // Different email → should resolve the referrer normally.
         $other = $method->invoke($authService, $existingUser->referral_code, 'bob@nexu.com');

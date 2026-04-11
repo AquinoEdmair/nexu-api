@@ -329,4 +329,27 @@ class ReferralEndpointTest extends TestCase
 
         $response->assertStatus(200);
     }
+
+    /**
+     * @test
+     * Test that the registration endpoint blocks self-referral attempts.
+     */
+    public function test_registration_fails_with_self_referral_code(): void
+    {
+        $existingUser = $this->makeUser('investor@nexu.com');
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'name'                  => 'Investor Attempt',
+            'email'                 => 'investor@nexu.com', // Same email as the owner of the code
+            'password'              => 'Secur3Pass!',
+            'password_confirmation' => 'Secur3Pass!',
+            'referral_code'         => $existingUser->referral_code,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['referral_code'])
+            ->assertJsonFragment([
+                'referral_code' => ['No puedes utilizar tu propio código de referido para registrarte.']
+            ]);
+    }
 }
