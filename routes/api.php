@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\ReferralController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\WebhookController;
 use App\Http\Controllers\Api\WithdrawalController;
+use App\Http\Controllers\Api\YieldController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -81,6 +82,9 @@ Route::middleware(['auth:api', 'user.active'])->group(function (): void {
     // Transactions
     Route::get('/transactions', [TransactionController::class, 'index']);
     Route::get('/transactions/{id}', [TransactionController::class, 'show']);
+
+    // Yields
+    Route::get('/yields', [YieldController::class, 'index']);
 
     // Referrals
     Route::prefix('referrals')->group(function (): void {
