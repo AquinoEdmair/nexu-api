@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\BalanceController;
 use App\Http\Controllers\Api\DepositController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\MetricsController;
+use App\Http\Controllers\Api\ReferralController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\WebhookController;
 use App\Http\Controllers\Api\WithdrawalController;
@@ -29,6 +30,7 @@ Route::prefix('auth')->middleware('throttle:10,1')->group(function (): void {
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
     Route::post('/email/resend', [EmailVerificationController::class, 'resendByEmail']);
+    Route::post('/validate-referral-code', [ReferralController::class, 'validateCode']);
 });
 
 // Email verification link from the email (signed URL, no auth)
@@ -79,4 +81,11 @@ Route::middleware(['auth:api', 'user.active'])->group(function (): void {
     // Transactions
     Route::get('/transactions', [TransactionController::class, 'index']);
     Route::get('/transactions/{id}', [TransactionController::class, 'show']);
+
+    // Referrals
+    Route::prefix('referrals')->group(function (): void {
+        Route::get('/summary', [ReferralController::class, 'summary']);
+        Route::get('/network', [ReferralController::class, 'network']);
+        Route::get('/earnings', [ReferralController::class, 'earnings']);
+    });
 });

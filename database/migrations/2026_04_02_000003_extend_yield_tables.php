@@ -24,9 +24,12 @@ return new class extends Migration
             $table->index(['status', 'applied_at'], 'idx_yield_logs_status_applied_at');
         });
 
-        // Extend status to include 'skipped' — PostgreSQL needs raw SQL for enum column changes
-        DB::statement("ALTER TABLE \"yield_log_users\" DROP CONSTRAINT IF EXISTS \"yield_log_users_status_check\"");
-        DB::statement("ALTER TABLE \"yield_log_users\" ADD CONSTRAINT \"yield_log_users_status_check\" CHECK (\"status\" IN ('applied', 'skipped', 'failed'))");
+        // Extend status to include 'skipped' — PostgreSQL needs raw SQL for enum column changes.
+        // Skip on SQLite (used in tests); SQLite has no named CHECK constraints.
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement("ALTER TABLE \"yield_log_users\" DROP CONSTRAINT IF EXISTS \"yield_log_users_status_check\"");
+            DB::statement("ALTER TABLE \"yield_log_users\" ADD CONSTRAINT \"yield_log_users_status_check\" CHECK (\"status\" IN ('applied', 'skipped', 'failed'))");
+        }
 
         Schema::table('yield_log_users', function (Blueprint $table): void {
             // For per-user yield history
@@ -40,8 +43,10 @@ return new class extends Migration
             $table->dropIndex('idx_yield_log_users_user_id_created');
         });
 
-        DB::statement("ALTER TABLE \"yield_log_users\" DROP CONSTRAINT IF EXISTS \"yield_log_users_status_check\"");
-        DB::statement("ALTER TABLE \"yield_log_users\" ADD CONSTRAINT \"yield_log_users_status_check\" CHECK (\"status\" IN ('applied', 'failed'))");
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement("ALTER TABLE \"yield_log_users\" DROP CONSTRAINT IF EXISTS \"yield_log_users_status_check\"");
+            DB::statement("ALTER TABLE \"yield_log_users\" ADD CONSTRAINT \"yield_log_users_status_check\" CHECK (\"status\" IN ('applied', 'failed'))");
+        }
 
         Schema::table('yield_logs', function (Blueprint $table): void {
             $table->dropIndex('idx_yield_logs_status_applied_at');

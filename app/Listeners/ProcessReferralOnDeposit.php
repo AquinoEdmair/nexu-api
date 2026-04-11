@@ -5,31 +5,38 @@ declare(strict_types=1);
 namespace App\Listeners;
 
 use App\Events\DepositConfirmed;
-use App\Models\Referral;
+use App\Services\ReferralService;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 final class ProcessReferralOnDeposit
 {
+    public function __construct(
+        private readonly ReferralService $referralService,
+    ) {}
+
+    /**
+     * Apply referral commission and Elite points when a deposit is confirmed.
+     * Idempotent — safe to retry.
+     */
     public function handle(DepositConfirmed $event): void
     {
-        $referral = Referral::where('referred_id', $event->user->id)->first();
+        try {
+            $tx = $this->referralService->applyDepositCommission($event->transaction);
 
-        if ($referral === null) {
-            return;
+            if ($tx !== null) {
+                Log::info('ProcessReferralOnDeposit: commission applied', [
+                    'commission_tx_id' => $tx->id,
+                    'deposit_id'       => $event->transaction->id,
+                ]);
+            }
+        } catch (Throwable $e) {
+            // Log but do not rethrow — a referral failure must never block
+            // the main deposit confirmation flow.
+            Log::error('ProcessReferralOnDeposit: failed to apply commission', [
+                'deposit_id' => $event->transaction->id,
+                'error'      => $e->getMessage(),
+            ]);
         }
-
-        // @todo Implement full referral commission via ReferralService
-        // This listener should:
-        // 1. Calculate commission = netAmount × referral.commission_rate
-        // 2. Create Transaction(type=referral_commission) for referrer
-        // 3. Credit referrer's wallet.balance_available
-        // 4. Sum ElitePoints to referrer (1 pt / $1 USD)
-        // 5. Update referral.total_earned
-
-        Log::info('ProcessReferralOnDeposit: referral commission pending', [
-            'referrer_id' => $referral->referrer_id,
-            'referred_id' => $event->user->id,
-            'net_amount'  => $event->netAmount,
-        ]);
     }
 }

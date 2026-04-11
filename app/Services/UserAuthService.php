@@ -10,7 +10,6 @@ use App\Models\Referral;
 use App\Models\CommissionConfig;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Registered;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -53,7 +52,7 @@ final class UserAuthService
     public function register(array $data): array
     {
         $user = DB::transaction(function () use ($data): User {
-            $referrer = $this->resolveReferrer($data['referral_code'] ?? null);
+            $referrer = $this->resolveReferrer($data['referral_code'] ?? null, $data['email']);
 
             $user = User::create([
                 'name'          => $data['name'],
@@ -154,13 +153,25 @@ final class UserAuthService
 
     // ── Private helpers ──────────────────────────────────────────────────────
 
-    private function resolveReferrer(?string $referralCode): ?User
+    /**
+     * Resolve the referrer user by referral code.
+     * Returns null for blank codes or self-referral attempts.
+     */
+    private function resolveReferrer(?string $referralCode, ?string $registrantEmail = null): ?User
     {
         if (blank($referralCode)) {
             return null;
         }
 
-        return User::where('referral_code', $referralCode)->first();
+        $referrer = User::where('referral_code', strtoupper(trim($referralCode)))->first();
+
+        // Prevent self-referral (same email address).
+        if ($referrer !== null && $registrantEmail !== null
+            && strtolower($referrer->email) === strtolower($registrantEmail)) {
+            return null;
+        }
+
+        return $referrer;
     }
 
     private function generateUniqueReferralCode(): string
