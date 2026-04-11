@@ -23,5 +23,17 @@ php artisan filament:cache-components
 echo "Creating storage link..."
 php artisan storage:link || true
 
+# Toggle Horizon based on ENABLE_HORIZON env var (default: false).
+# When disabled, strip the horizon block from supervisord.conf so it doesn't
+# hit Redis. Horizon is the LAST block in supervisord.conf, so we delete
+# from "[program:horizon]" to the end of file. Flip ENABLE_HORIZON=true
+# in Railway to bring it back.
+if [ "${ENABLE_HORIZON:-false}" != "true" ]; then
+    echo "Horizon disabled (ENABLE_HORIZON != true) — removing from supervisord..."
+    sed -i '/\[program:horizon\]/,$d' /etc/supervisord.conf
+else
+    echo "Horizon enabled."
+fi
+
 echo "Starting services..."
 exec /usr/bin/supervisord -c /etc/supervisord.conf
