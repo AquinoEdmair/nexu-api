@@ -40,6 +40,12 @@ final class UserAuthService
             ]);
         }
 
+        if (! $user->hasVerifiedEmail()) {
+            throw ValidationException::withMessages([
+                'email' => ['Tu cuenta aún no ha sido verificada. Por favor, revisa tu correo electrónico para confirmarla.'],
+            ]);
+        }
+
         $token = $user->createToken('api')->plainTextToken;
 
         return ['user' => $user, 'token' => $token];
