@@ -62,7 +62,7 @@ final class WithdrawalRequestResource extends Resource
 
                 TextColumn::make('amount')
                     ->label('Monto')
-                    ->numeric(decimalPlaces: 2)
+                    ->formatStateUsing(fn(string $state): string => TransactionResource::formatSmart($state))
                     ->prefix('$')
                     ->sortable(),
 

@@ -53,19 +53,19 @@ final class TransactionResource extends Resource
 
                 TextColumn::make('amount')
                     ->label('Bruto')
-                    ->numeric(decimalPlaces: 8)
+                    ->formatStateUsing(fn(string $state): string => self::formatSmart($state))
                     ->prefix('$')
                     ->sortable(),
 
                 TextColumn::make('fee_amount')
                     ->label('Comisión')
-                    ->numeric(decimalPlaces: 8)
+                    ->formatStateUsing(fn(string $state): string => self::formatSmart($state))
                     ->prefix('$')
                     ->color('danger'),
 
                 TextColumn::make('net_amount')
                     ->label('Neto')
-                    ->numeric(decimalPlaces: 8)
+                    ->formatStateUsing(fn(string $state): string => self::formatSmart($state))
                     ->prefix('$')
                     ->weight('bold')
                     ->sortable(),
@@ -257,5 +257,23 @@ final class TransactionResource extends Resource
             'rejected'   => 'Rechazado',
             default      => $status,
         };
+    }
+
+    public static function formatSmart(string|float|null $value): string
+    {
+        if ($value === null) {
+            return '—';
+        }
+
+        $val = (float) $value;
+
+        // If it's effectively an integer or has at most 2 significant decimals, 
+        // show 2 decimals (standard currency format).
+        if ($val == round($val, 2)) {
+            return number_format($val, 2, '.', ',');
+        }
+
+        // Otherwise, show up to 8 decimals but strip trailing zeros.
+        return rtrim(rtrim(number_format($val, 8, '.', ','), '0'), '.');
     }
 }

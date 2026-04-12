@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\YieldLogResource\RelationManagers;
 
+use App\Filament\Resources\TransactionResource;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -25,19 +26,19 @@ final class YieldLogUsersRelationManager extends RelationManager
 
                 TextColumn::make('balance_before')
                     ->label('Balance antes')
-                    ->numeric(decimalPlaces: 8)
+                    ->formatStateUsing(fn(string $state): string => TransactionResource::formatSmart($state))
                     ->prefix('$'),
 
                 TextColumn::make('amount_applied')
                     ->label('Monto aplicado')
-                    ->numeric(decimalPlaces: 8)
+                    ->formatStateUsing(fn(string $state): string => TransactionResource::formatSmart($state))
                     ->prefix('$')
                     ->color(fn(string $state): string => (float) $state < 0 ? 'danger' : 'success')
                     ->sortable(),
 
                 TextColumn::make('balance_after')
                     ->label('Balance después')
-                    ->numeric(decimalPlaces: 8)
+                    ->formatStateUsing(fn(string $state): string => TransactionResource::formatSmart($state))
                     ->prefix('$'),
 
                 TextColumn::make('status')

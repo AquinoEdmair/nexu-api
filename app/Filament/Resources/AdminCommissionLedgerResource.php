@@ -12,6 +12,7 @@ use Filament\Tables\Table;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use App\Filament\Resources\TransactionResource;
 use App\Filament\Resources\AdminCommissionLedgerResource\Pages;
 
 final class AdminCommissionLedgerResource extends Resource
@@ -56,7 +57,8 @@ final class AdminCommissionLedgerResource extends Resource
 
                 TextColumn::make('amount')
                     ->label('Monto Comisión')
-                    ->money('USD')
+                    ->formatStateUsing(fn(string $state): string => TransactionResource::formatSmart($state))
+                    ->prefix('$')
                     ->sortable(),
 
                 TextColumn::make('commission_rate')
