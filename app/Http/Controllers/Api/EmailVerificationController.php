@@ -41,6 +41,7 @@ final class EmailVerificationController extends Controller
         }
 
         $user->markEmailAsVerified();
+        $user->update(['status' => 'active']);
         event(new Verified($user));
 
         return redirect()->away($frontendUrl . '/email-verified?status=success');
