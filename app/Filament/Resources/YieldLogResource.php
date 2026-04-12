@@ -25,6 +25,9 @@ final class YieldLogResource extends Resource
     protected static ?string $navigationGroup = 'Finanzas';
     protected static ?int $navigationSort = 3;
 
+    protected static ?string $modelLabel = 'Rendimiento';
+    protected static ?string $pluralModelLabel = 'Rendimientos';
+
     protected static ?string $recordTitleAttribute = 'id';
 
     public static function form(Form $form): Form

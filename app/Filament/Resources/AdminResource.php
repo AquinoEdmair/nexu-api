@@ -25,6 +25,9 @@ class AdminResource extends Resource
     protected static ?string $navigationGroup = 'Sistema';
     protected static ?int    $navigationSort  = 10;
 
+    protected static ?string $modelLabel = 'Administrador';
+    protected static ?string $pluralModelLabel = 'Administradores';
+
     protected static ?string $recordTitleAttribute = 'email';
 
     public static function canDelete(mixed $record): bool

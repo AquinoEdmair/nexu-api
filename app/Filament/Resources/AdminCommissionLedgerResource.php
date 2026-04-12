@@ -19,9 +19,12 @@ final class AdminCommissionLedgerResource extends Resource
     protected static ?string $model = AdminCommissionLedger::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-banknotes';
-    protected static ?string $navigationLabel = 'Ledger de Comisiones';
+    protected static ?string $navigationLabel = 'Libro de Comisiones';
     protected static ?string $navigationGroup = 'Finanzas';
     protected static ?int $navigationSort = 2;
+
+    protected static ?string $modelLabel = 'Libro de Comisiones';
+    protected static ?string $pluralModelLabel = 'Libros de Comisiones';
 
     public static function form(Form $form): Form
     {

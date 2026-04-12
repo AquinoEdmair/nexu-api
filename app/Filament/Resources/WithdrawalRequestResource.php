@@ -24,6 +24,9 @@ final class WithdrawalRequestResource extends Resource
     protected static ?string $navigationGroup = 'Finanzas';
     protected static ?int    $navigationSort  = 4;
 
+    protected static ?string $modelLabel = 'Solicitud de Retiro';
+    protected static ?string $pluralModelLabel = 'Solicitudes de Retiro';
+
     protected static ?string $recordTitleAttribute = 'id';
 
     public static function getNavigationBadge(): ?string

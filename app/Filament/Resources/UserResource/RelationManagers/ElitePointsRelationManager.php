@@ -12,7 +12,7 @@ use Filament\Tables\Table;
 final class ElitePointsRelationManager extends RelationManager
 {
     protected static string $relationship = 'elitePoints';
-    protected static ?string $title       = 'Puntos Elite';
+    protected static ?string $title       = 'Puntos Élite';
 
     public function table(Table $table): Table
     {

@@ -27,6 +27,9 @@ final class CommissionConfigResource extends Resource
     protected static ?string $navigationGroup = 'Configuración';
     protected static ?int    $navigationSort  = 1;
 
+    protected static ?string $modelLabel = 'Configuración de Comisión';
+    protected static ?string $pluralModelLabel = 'Configuraciones de Comisiones';
+
     protected static ?string $recordTitleAttribute = 'type';
 
     public static function form(Form $form): Form

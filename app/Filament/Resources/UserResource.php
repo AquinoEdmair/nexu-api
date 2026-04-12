@@ -38,6 +38,9 @@ class UserResource extends Resource
     protected static ?string $navigationGroup = 'Usuarios';
     protected static ?int    $navigationSort  = 1;
 
+    protected static ?string $modelLabel = 'Usuario';
+    protected static ?string $pluralModelLabel = 'Usuarios';
+
     protected static ?string $recordTitleAttribute = 'email';
 
     /** @return array<string> */
