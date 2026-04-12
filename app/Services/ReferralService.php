@@ -238,8 +238,14 @@ final class ReferralService
             ->sum('net_amount');
 
         /** @var EliteTier|null $tier */
-        $tier     = $user->eliteTier;
-        $nextTier = $tier !== null ? app(EliteTierService::class)->getNextTier($tier) : null;
+        $tier = $user->eliteTier;
+        
+        $allTiers = EliteTier::active()->ordered()->get();
+        
+        // If user has no tier, the "next" is the first one available
+        $nextTier = $tier !== null 
+            ? app(EliteTierService::class)->getNextTier($tier) 
+            : $allTiers->first();
 
         $pointsToNext = $nextTier !== null
             ? max(0, (float) $nextTier->min_points - $totalPoints)
@@ -274,6 +280,11 @@ final class ReferralService
                     ? number_format($pointsToNext, 2, '.', '')
                     : null,
                 'progress_pct' => $progressPct,
+                'tiers'        => $allTiers->map(fn($t) => [
+                    'name' => $t->name,
+                    'slug' => $t->slug,
+                    'min_points' => (float) $t->min_points,
+                ])->toArray(),
             ],
         ];
     }
