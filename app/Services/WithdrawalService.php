@@ -218,7 +218,7 @@ final class WithdrawalService
             throw new AuthorizationException('Solo el propietario puede cancelar esta solicitud.');
         }
 
-        $result = DB::transaction(function () use ($request): WithdrawalRequest {\
+        $result = DB::transaction(function () use ($request): WithdrawalRequest {
             $fresh = WithdrawalRequest::lockForUpdate()->findOrFail($request->id);
 
             $this->assertStatus($fresh, 'pending');

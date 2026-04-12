@@ -232,6 +232,11 @@ final class ReferralService
 
         $totalPoints = (float) ElitePoint::where('user_id', $user->id)->sum('points');
 
+        $totalPersonalDeposit = (float) Transaction::where('user_id', $user->id)
+            ->where('type', 'deposit')
+            ->where('status', 'confirmed')
+            ->sum('net_amount');
+
         /** @var EliteTier|null $tier */
         $tier     = $user->eliteTier;
         $nextTier = $tier !== null ? app(EliteTierService::class)->getNextTier($tier) : null;
@@ -246,9 +251,10 @@ final class ReferralService
             'code'      => $user->referral_code,
             'share_url' => sprintf((string) config('referrals.share_url_template'), $user->referral_code),
             'stats'     => [
-                'active_count'   => $activeReferreds,
-                'inactive_count' => $referrals->count() - $activeReferreds,
-                'total_earned'   => number_format((float) $totalEarned, 8, '.', ''),
+                'active_count'           => $activeReferreds,
+                'inactive_count'         => $referrals->count() - $activeReferreds,
+                'total_earned'           => number_format((float) $totalEarned, 8, '.', ''),
+                'total_personal_deposit' => number_format($totalPersonalDeposit, 2, '.', ''),
             ],
             'elite' => [
                 'points_total' => number_format($totalPoints, 2, '.', ''),
