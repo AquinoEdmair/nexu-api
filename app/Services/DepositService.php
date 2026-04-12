@@ -54,47 +54,48 @@ final class DepositService
      */
     public function processWebhook(array $payload): void
     {
-        $invoice = DepositInvoice::where('invoice_id', $payload['invoice_id'])->firstOrFail();
+        $result = DB::transaction(function () use ($payload): ?array {
+            // 1. Lock invoice for update to prevent concurrent processing
+            $invoice = DepositInvoice::where('invoice_id', $payload['invoice_id'])
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        // Idempotency: already processed
-        if ($invoice->status === 'completed') {
-            Log::info('DepositService: webhook already processed', ['invoice_id' => $payload['invoice_id']]);
+            // 2. Idempotency: already processed (Inside lock)
+            if ($invoice->status === 'completed') {
+                Log::info('DepositService: webhook already processed', ['invoice_id' => $payload['invoice_id']]);
+                return null;
+            }
 
-            return;
-        }
+            // 3. Idempotency: check external_tx_id uniqueness (Inside lock)
+            $txExists = Transaction::where('external_tx_id', $payload['tx_hash'])->exists();
+            if ($txExists) {
+                Log::warning('DepositService: duplicate tx_hash', ['tx_hash' => $payload['tx_hash']]);
+                return null;
+            }
 
-        // Idempotency: check external_tx_id uniqueness
-        $txExists = Transaction::where('external_tx_id', $payload['tx_hash'])->exists();
-        if ($txExists) {
-            Log::warning('DepositService: duplicate tx_hash', ['tx_hash' => $payload['tx_hash']]);
+            $amount   = $payload['amount'];
+            $currency = $payload['currency'] ?? $invoice->currency;
+            $txHash   = $payload['tx_hash'];
+            $userId   = $invoice->user_id;
 
-            return;
-        }
+            // Sandbox workaround: if amount is 0, fallback to expected amount for testing
+            if ((float)$amount <= 0 && config('services.crypto.nowpayments.sandbox', true)) {
+                $amount = (string)$invoice->amount_expected;
+                Log::info('DepositService: sandbox amount fallback', ['original' => $payload['amount'], 'fallback' => $amount]);
+            }
 
-        $amount   = $payload['amount'];
-        $currency = $payload['currency'];
-        $txHash   = $payload['tx_hash'];
-        $userId   = $invoice->user_id;
+            Log::info('DepositService: processing confirmed deposit', [
+                'invoice_id' => $invoice->invoice_id,
+                'amount'     => $amount,
+                'user_id'    => $userId,
+            ]);
 
-        // Sandbox workaround: if amount is 0, fallback to expected amount for testing
-        if ((float)$amount <= 0 && config('services.crypto.nowpayments.sandbox', true)) {
-            $amount = (string)$invoice->amount_expected;
-            Log::info('DepositService: sandbox amount fallback', ['original' => $payload['amount'], 'fallback' => $amount]);
-        }
+            $commissionRate = $this->commissionService->getActiveRate('deposit');
+            $rateDecimal    = bcdiv((string) $commissionRate, '100', 10);
+            $feeAmount      = bcmul((string)$amount, $rateDecimal, 8);
+            $netAmount      = bcsub((string)$amount, $feeAmount, 8);
 
-        Log::info('DepositService: processing confirmed deposit', [
-            'invoice_id' => $invoice->invoice_id,
-            'amount'     => $amount,
-            'user_id'    => $userId,
-        ]);
-
-        $commissionRate = $this->commissionService->getActiveRate('deposit');
-        $rateDecimal    = bcdiv((string) $commissionRate, '100', 10);
-        $feeAmount      = bcmul((string)$amount, $rateDecimal, 8);
-        $netAmount      = bcsub((string)$amount, $feeAmount, 8);
-
-        DB::transaction(function () use ($invoice, $userId, $amount, $feeAmount, $netAmount, $currency, $txHash, $commissionRate): void {
-            Log::info('DepositService: starting DB transaction', ['user_id' => $userId]);
+            Log::info('DepositService: locking wallet for update', ['user_id' => $userId]);
             $wallet = Wallet::where('user_id', $userId)->lockForUpdate()->firstOrFail();
 
             // Create deposit transaction
@@ -145,12 +146,20 @@ final class DepositService
                 'transaction_id'  => $depositTx->id,
                 'completed_at'    => now(),
             ]);
+
+            return [
+                'userId'      => $userId,
+                'transaction' => $depositTx,
+                'netAmount'   => $netAmount,
+                'currency'    => $currency,
+            ];
         });
 
-        // Fire event outside transaction (for listeners/notifications)
-        $invoice->refresh();
-        $user = User::findOrFail($userId);
-        DepositConfirmed::dispatch($user, $invoice->transaction, $netAmount, $currency);
+        // 4. Fire event outside transaction (for listeners/notifications)
+        if ($result !== null) {
+            $user = User::findOrFail($result['userId']);
+            DepositConfirmed::dispatch($user, $result['transaction'], $result['netAmount'], $result['currency']);
+        }
     }
 
     /**

@@ -56,6 +56,7 @@ Route::middleware(['auth:api', 'user.active'])->group(function (): void {
     // Auth
     Route::prefix('auth')->group(function (): void {
         Route::post('/logout', [AuthController::class, 'logout']);
+        Route::put('/profile', [AuthController::class, 'updateProfile']);
         Route::post('/refresh', [AuthController::class, 'refresh']);
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/email/verification-notification', [EmailVerificationController::class, 'resend'])

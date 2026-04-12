@@ -120,6 +120,11 @@ final class ReferralService
             ->whereHas('transactions', fn ($q) => $q->where('type', 'deposit')->where('status', 'confirmed'))
             ->count();
 
+        $totalPersonalDeposit = (float) $user->transactions()
+            ->where('type', 'deposit')
+            ->where('status', 'confirmed')
+            ->sum('net_amount');
+
         $totalPoints = (float) ElitePoint::where('user_id', $user->id)->sum('points');
         $tier        = EliteTier::fromPoints($totalPoints);
         $nextTier    = $tier->next();
@@ -133,9 +138,10 @@ final class ReferralService
             'share_url'       => sprintf((string) config('referrals.share_url_template'), $user->referral_code),
             'commission_rate' => number_format((float) ($referrals->first()?->commission_rate ?? 0), 4, '.', ''),
             'stats'           => [
-                'active_count'   => $activeReferreds,
-                'inactive_count' => $referrals->count() - $activeReferreds,
-                'total_earned'   => number_format((float) $totalEarned, 8, '.', ''),
+                'active_count'           => $activeReferreds,
+                'inactive_count'         => $referrals->count() - $activeReferreds,
+                'total_earned'           => number_format((float) $totalEarned, 8, '.', ''),
+                'total_personal_deposit' => number_format($totalPersonalDeposit, 2, '.', ''),
             ],
             'elite' => [
                 'points'        => number_format($totalPoints, 2, '.', ''),

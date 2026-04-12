@@ -200,4 +200,18 @@ final class UserAuthService
 
         return $config?->value ?? '0.0500';
     }
+
+    /**
+     * Update user profile basic data.
+     *
+     * @param  User  $user
+     * @param  array{name?: string, phone?: string|null} $data
+     * @return User
+     */
+    public function updateProfile(User $user, array $data): User
+    {
+        $user->update(array_intersect_key($data, array_flip(['name', 'phone'])));
+
+        return $user->fresh();
+    }
 }

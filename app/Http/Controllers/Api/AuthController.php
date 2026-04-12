@@ -69,6 +69,25 @@ final class AuthController extends Controller
         ]);
     }
 
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name'  => ['sometimes', 'string', 'max:255'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:50'],
+        ]);
+
+        /** @var User $user */
+        $user = $request->user();
+        $user = $this->authService->updateProfile($user, $validated);
+
+        return response()->json([
+            'data' => [
+                'user' => $user,
+            ],
+            'message' => 'Profile updated successfully.',
+        ]);
+    }
+
     public function refresh(Request $request): JsonResponse
     {
         /** @var User $user */
