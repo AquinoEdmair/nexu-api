@@ -44,7 +44,7 @@ final class YieldService
             ->performedOn($yieldLog)
             ->log('yield_log.created');
 
-        ApplyYieldToUsers::dispatch($yieldLog->id, $dto->scope, $dto->userId);
+        ApplyYieldToUsers::dispatch($yieldLog->id, $dto->scope, $dto->userId)->onQueue('yields');
 
         return $yieldLog;
     }
