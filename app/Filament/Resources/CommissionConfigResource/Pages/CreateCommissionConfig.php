@@ -30,8 +30,8 @@ final class CreateCommissionConfig extends CreateRecord
                     Select::make('type')
                         ->label('Tipo de comisión')
                         ->options([
-                            'deposit'  => 'Comisión de depósito',
-                            'referral' => 'Comisión de referido',
+                            'deposit'    => 'Comisión de depósito',
+                            'withdrawal' => 'Comisión de retiro',
                         ])
                         ->required()
                         ->native(false),

@@ -61,7 +61,7 @@ final class ViewCommissionConfig extends ViewRecord
                 ->modalHeading('⚠ ¿Desactivar esta configuración?')
                 ->modalDescription(fn (CommissionConfig $record): string =>
                     "ATENCIÓN: Si desactivas esta configuración, NO habrá tasa de comisión activa "
-                    . "para '{$record->type}'. Los depósitos/referidos futuros NO cobrarán comisión "
+                    . "para '{$record->type}'. Los depósitos/retiros futuros NO cobrarán comisión "
                     . "hasta que se active una nueva configuración. ¿Estás seguro?"
                 )
                 ->action(function (CommissionConfig $record, CommissionService $service): void {
