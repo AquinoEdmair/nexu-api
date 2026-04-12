@@ -20,13 +20,7 @@ final class YieldAppliedNotification extends Notification
     /** @return array<string> */
     public function via(object $notifiable): array
     {
-        $channels = ['mail'];
-
-        if (! empty($notifiable->phone)) {
-            $channels[] = 'vonage';
-        }
-
-        return $channels;
+        return ['mail'];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -53,16 +47,5 @@ final class YieldAppliedNotification extends Notification
             ->action('Ver mi cuenta', config('app.frontend_url', config('app.url')));
     }
 
-    public function toVonage(object $notifiable): \Illuminate\Notifications\Messages\VonageMessage
-    {
-        $amount  = (float) $this->yieldLogUser->amount_applied;
-        $balance = number_format((float) $this->yieldLogUser->balance_after, 2);
-        $abs     = number_format(abs($amount), 2);
-
-        $text = $amount >= 0
-            ? "NEXU: Rendimiento de \${$abs} aplicado. Saldo en operación: \${$balance}."
-            : "NEXU: Ajuste de -\${$abs} aplicado. Saldo en operación: \${$balance}.";
-
-        return (new \Illuminate\Notifications\Messages\VonageMessage())->content($text);
-    }
 }
+

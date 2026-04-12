@@ -20,13 +20,7 @@ final class UserStatusChangedNotification extends Notification
     /** @return array<string> */
     public function via(object $notifiable): array
     {
-        $channels = ['mail'];
-
-        if (filled($notifiable->phone)) {
-            $channels[] = 'vonage';
-        }
-
-        return $channels;
+        return ['mail'];
     }
 
     public function toMail(object $notifiable): MailMessage
