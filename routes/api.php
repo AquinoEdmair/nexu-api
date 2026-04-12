@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BalanceController;
 use App\Http\Controllers\Api\DepositController;
+use App\Http\Controllers\Api\EliteTierController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\MetricsController;
 use App\Http\Controllers\Api\ReferralController;
@@ -38,6 +39,9 @@ Route::prefix('auth')->middleware('throttle:10,1')->group(function (): void {
 Route::get('/auth/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
     ->middleware(['signed', 'throttle:6,1'])
     ->name('verification.verify');
+
+// ── Elite tiers (public) ─────────────────────────────────────────────────
+Route::get('/elite/tiers', [EliteTierController::class, 'index']);
 
 // ── Metrics (public) ─────────────────────────────────────────────────────
 Route::prefix('metrics')->group(function (): void {
@@ -89,8 +93,9 @@ Route::middleware(['auth:api', 'user.active'])->group(function (): void {
 
     // Referrals
     Route::prefix('referrals')->group(function (): void {
-        Route::get('/summary', [ReferralController::class, 'summary']);
-        Route::get('/network', [ReferralController::class, 'network']);
-        Route::get('/earnings', [ReferralController::class, 'earnings']);
+        Route::get('/summary',        [ReferralController::class, 'summary']);
+        Route::get('/network',        [ReferralController::class, 'network']);
+        Route::get('/earnings',       [ReferralController::class, 'earnings']);
+        Route::get('/points-history', [ReferralController::class, 'pointsHistory']);
     });
 });

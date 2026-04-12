@@ -6,14 +6,20 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers;
+use App\Models\EliteTier;
 use App\Models\User;
+use App\Services\EliteTierService;
 use App\Services\UserService;
 use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
+use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\Section as InfolistSection;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Infolist;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\EditAction;
@@ -157,6 +163,28 @@ class UserResource extends Resource
                 ])
                 ->columns(2),
 
+            InfolistSection::make('Nivel Élite')
+                ->schema([
+                    TextEntry::make('eliteTier.name')
+                        ->label('Tier actual')
+                        ->badge()
+                        ->default('Sin asignar'),
+
+                    TextEntry::make('elite_points')
+                        ->label('Puntos acumulados')
+                        ->numeric(decimalPlaces: 2)
+                        ->default('0'),
+
+                    IconEntry::make('elite_tier_manual_override')
+                        ->label('Override manual')
+                        ->boolean()
+                        ->trueIcon('heroicon-o-lock-closed')
+                        ->falseIcon('heroicon-o-lock-open')
+                        ->trueColor('warning')
+                        ->falseColor('gray'),
+                ])
+                ->columns(3),
+
             InfolistSection::make('Bloqueo')
                 ->schema([
                     TextEntry::make('blocked_reason')
@@ -210,6 +238,18 @@ class UserResource extends Resource
                     ->sortable()
                     ->default('0.00'),
 
+                TextColumn::make('eliteTier.name')
+                    ->label('Tier')
+                    ->badge()
+                    ->default('—')
+                    ->sortable(),
+
+                TextColumn::make('elite_points')
+                    ->label('Puntos')
+                    ->numeric(decimalPlaces: 0)
+                    ->sortable()
+                    ->default('0'),
+
                 TextColumn::make('referrals_count')
                     ->label('Referidos')
                     ->counts('referrals')
@@ -233,6 +273,69 @@ class UserResource extends Resource
             ->actions([
                 ViewAction::make(),
                 EditAction::make(),
+                Action::make('assignEliteTier')
+                    ->label('Asignar tier')
+                    ->icon('heroicon-o-trophy')
+                    ->color('warning')
+                    ->form([
+                        Select::make('elite_tier_id')
+                            ->label('Nivel Élite')
+                            ->options(
+                                EliteTier::query()
+                                    ->where('is_active', true)
+                                    ->orderBy('sort_order')
+                                    ->pluck('name', 'id')
+                                    ->toArray()
+                            )
+                            ->nullable()
+                            ->placeholder('Sin asignar'),
+
+                        Toggle::make('elite_tier_manual_override')
+                            ->label('Override manual (evita recálculo automático)')
+                            ->helperText('Activo = el tier no cambia aunque cambien sus puntos.'),
+                    ])
+                    ->fillForm(fn(User $record): array => [
+                        'elite_tier_id'              => $record->elite_tier_id,
+                        'elite_tier_manual_override' => $record->elite_tier_manual_override,
+                    ])
+                    ->action(function (User $record, array $data): void {
+                        $service = app(EliteTierService::class);
+
+                        if ($data['elite_tier_id'] !== null) {
+                            $tier = EliteTier::findOrFail($data['elite_tier_id']);
+                            $service->assignManually($record, $tier);
+
+                            if (! $data['elite_tier_manual_override']) {
+                                $service->releaseOverride($record);
+                            }
+                        } else {
+                            $service->releaseOverride($record);
+                            $record->update(['elite_tier_id' => null]);
+                        }
+
+                        Notification::make()
+                            ->title('Tier actualizado')
+                            ->success()
+                            ->send();
+                    }),
+
+                Action::make('recalculateEliteTier')
+                    ->label('Recalcular tier')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('gray')
+                    ->requiresConfirmation()
+                    ->modalHeading('Recalcular nivel Élite')
+                    ->modalDescription('Se recalculará el tier según los puntos actuales del usuario y se liberará el override manual si estaba activo.')
+                    ->action(function (User $record): void {
+                        app(EliteTierService::class)->releaseOverride($record);
+                        app(EliteTierService::class)->recalculateForUser($record->fresh());
+
+                        Notification::make()
+                            ->title('Tier recalculado')
+                            ->success()
+                            ->send();
+                    }),
+
                 Action::make('block')
                     ->label('Bloquear')
                     ->icon('heroicon-o-no-symbol')

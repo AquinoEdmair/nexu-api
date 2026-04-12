@@ -80,6 +80,30 @@ final class ReferralController extends Controller
     }
 
     /**
+     * GET /referrals/points-history
+     * Paginated history of how the user earned Elite points.
+     */
+    public function pointsHistory(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user    = $request->user();
+        $page    = max(1, $request->integer('page', 1));
+        $perPage = max(5, min(50, $request->integer('per_page', 20)));
+
+        $paginator = $this->referralService->getPointsHistory($user, $page, $perPage);
+
+        return response()->json([
+            'data' => $paginator->items(),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'per_page'     => $paginator->perPage(),
+                'total'        => $paginator->total(),
+                'last_page'    => $paginator->lastPage(),
+            ],
+        ]);
+    }
+
+    /**
      * POST /auth/validate-referral-code   (public — no auth required)
      * Returns whether a code is valid and the masked referrer name.
      */
