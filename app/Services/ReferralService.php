@@ -430,18 +430,18 @@ final class ReferralService
         $desc = $point->description ?? '';
 
         if (str_starts_with($desc, 'deposit:')) {
-            return ['deposit', number_format((float) ($point->transaction?->net_amount ?? 0), 2, '.', '')];
+            return [__('depósito'), number_format((float) ($point->transaction?->net_amount ?? 0), 2, '.', '')];
         }
 
         if (str_starts_with($desc, 'yield:')) {
-            return ['yield', number_format((float) ($point->transaction?->net_amount ?? 0), 2, '.', '')];
+            return [__('rendimiento'), number_format((float) ($point->transaction?->net_amount ?? 0), 2, '.', '')];
         }
 
         if (str_starts_with($desc, 'referral_commission:')) {
-            return ['referral_commission', number_format((float) ($point->transaction?->net_amount ?? 0), 2, '.', '')];
+            return [__('comisión_referido'), number_format((float) ($point->transaction?->net_amount ?? 0), 2, '.', '')];
         }
 
-        return ['other', '0.00'];
+        return [__('otro'), '0.00'];
     }
 
     /** "johndoe@example.com" → "jo***@example.com" */

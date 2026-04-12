@@ -124,7 +124,7 @@ final class WithdrawalController extends Controller
         }
 
         return response()->json([
-            'message' => 'Solicitud de retiro cancelada.',
+            'message' => __('Solicitud de retiro cancelada.'),
         ]);
     }
 

@@ -11,7 +11,7 @@ use App\Models\Wallet;
 
 final class PreviewYieldService
 {
-    private const int PREVIEW_ROW_LIMIT = 100;
+    private const PREVIEW_ROW_LIMIT = 100;
 
     /**
      * Calculate yield impact WITHOUT writing to the database.

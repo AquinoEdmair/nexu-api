@@ -56,14 +56,14 @@ final class EmailVerificationController extends Controller
 
         if ($user->hasVerifiedEmail()) {
             return response()->json([
-                'message' => 'Email already verified.',
+                'message' => __('Email already verified.'),
             ]);
         }
 
         $user->sendEmailVerificationNotification();
 
         return response()->json([
-            'message' => 'Verification email sent.',
+            'message' => __('Verification email sent.'),
         ]);
     }
 
@@ -85,7 +85,7 @@ final class EmailVerificationController extends Controller
         }
 
         return response()->json([
-            'message' => 'If the email exists and is not verified, a new link has been sent.',
+            'message' => __('If the email exists and is not verified, a new link has been sent.'),
         ]);
     }
 }

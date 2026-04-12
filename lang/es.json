@@ -1,0 +1,19 @@
+{
+    "Your account has been blocked. Contact support.": "Tu cuenta ha sido bloqueada. Por favor, contacta con soporte.",
+    "Notification level: Max Level": "Nivel alcanzado: Nivel Máximo",
+    "Login successful.": "Inicio de sesión exitoso.",
+    "Registration successful.": "Registro exitoso.",
+    "Logged out successfully.": "Sesión cerrada correctamente.",
+    "Profile updated successfully.": "Perfil actualizado con éxito.",
+    "Token refreshed.": "Token actualizado.",
+    "Password reset link sent.": "Enlace de restablecimiento de contraseña enviado.",
+    "Password reset successfully.": "Contraseña restablecida con éxito.",
+    "Email already verified.": "El correo electrónico ya ha sido verificado.",
+    "Verification email sent.": "Correo de verificación enviado.",
+    "If the email exists and is not verified, a new link has been sent.": "Si el correo electrónico existe y no está verificado, se ha enviado un nuevo enlace.",
+    "Solicitud de retiro cancelada.": "Solicitud de retiro cancelada.",
+    "depósito": "Depósito",
+    "rendimiento": "Rendimiento",
+    "comisión_referido": "Comisión de referido",
+    "otro": "Otro"
+}

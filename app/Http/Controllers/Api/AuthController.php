@@ -32,7 +32,7 @@ final class AuthController extends Controller
                 'user'  => $result['user'],
                 'token' => $result['token'],
             ],
-            'message' => 'Login successful.',
+            'message' => __('Login successful.'),
         ]);
     }
 
@@ -45,7 +45,7 @@ final class AuthController extends Controller
                 'user'  => $result['user'],
                 'token' => $result['token'],
             ],
-            'message' => 'Registration successful.',
+            'message' => __('Registration successful.'),
         ], 201);
     }
 
@@ -56,7 +56,7 @@ final class AuthController extends Controller
         $this->authService->logout($user);
 
         return response()->json([
-            'message' => 'Logged out successfully.',
+            'message' => __('Logged out successfully.'),
         ]);
     }
 
@@ -84,7 +84,7 @@ final class AuthController extends Controller
             'data' => [
                 'user' => $user,
             ],
-            'message' => 'Profile updated successfully.',
+            'message' => __('Profile updated successfully.'),
         ]);
     }
 
@@ -99,7 +99,7 @@ final class AuthController extends Controller
                 'user'  => $result['user'],
                 'token' => $result['token'],
             ],
-            'message' => 'Token refreshed.',
+            'message' => __('Token refreshed.'),
         ]);
     }
 
@@ -108,7 +108,7 @@ final class AuthController extends Controller
         $this->authService->sendPasswordResetLink($request->validated()['email']);
 
         return response()->json([
-            'message' => 'Password reset link sent.',
+            'message' => __('Password reset link sent.'),
         ]);
     }
 
@@ -120,7 +120,7 @@ final class AuthController extends Controller
         $this->authService->resetPassword($request->validated());
 
         return response()->json([
-            'message' => 'Password reset successfully.',
+            'message' => __('Password reset successfully.'),
         ]);
     }
 }
