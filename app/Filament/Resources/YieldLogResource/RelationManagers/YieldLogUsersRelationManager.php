@@ -55,6 +55,14 @@ final class YieldLogUsersRelationManager extends RelationManager
                         'failed'  => 'Fallido',
                         default   => $state,
                     }),
+
+                TextColumn::make('error_message')
+                    ->label('Error')
+                    ->limit(50)
+                    ->tooltip(fn(?string $state): ?string => $state)
+                    ->wrap()
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: false),
             ])
             ->defaultSort('amount_applied', 'desc')
             ->filters([
