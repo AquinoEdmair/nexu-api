@@ -16,11 +16,12 @@ final class ProcessReferralOnDeposit
     ) {}
 
     /**
-     * Apply referral commission and Elite points when a deposit is confirmed.
-     * Idempotent — safe to retry.
+     * Apply referral commission to the referrer and award Elite points to the
+     * depositor when a deposit is confirmed. Idempotent — safe to retry.
      */
     public function handle(DepositConfirmed $event): void
     {
+        // 1. Commission to referrer (if user was referred) + points to referrer.
         try {
             $tx = $this->referralService->applyDepositCommission($event->transaction);
 
@@ -31,9 +32,17 @@ final class ProcessReferralOnDeposit
                 ]);
             }
         } catch (Throwable $e) {
-            // Log but do not rethrow — a referral failure must never block
-            // the main deposit confirmation flow.
             Log::error('ProcessReferralOnDeposit: failed to apply commission', [
+                'deposit_id' => $event->transaction->id,
+                'error'      => $e->getMessage(),
+            ]);
+        }
+
+        // 2. Elite points to the depositor.
+        try {
+            $this->referralService->awardPointsForDeposit($event->transaction);
+        } catch (Throwable $e) {
+            Log::error('ProcessReferralOnDeposit: failed to award deposit points', [
                 'deposit_id' => $event->transaction->id,
                 'error'      => $e->getMessage(),
             ]);

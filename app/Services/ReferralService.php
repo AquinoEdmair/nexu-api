@@ -4,24 +4,28 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Enums\EliteTier;
+use App\Jobs\RecalculateEliteTierJob;
 use App\Models\ElitePoint;
+use App\Models\EliteTier;
 use App\Models\Referral;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 final class ReferralService
 {
-    // ── Public API ───────────────────────────────────────────────────────────
+    // ── Deposit commission ────────────────────────────────────────────────────
 
     /**
      * Apply referral commission to the referrer after a deposit is confirmed.
+     * Uses the referrer's current tier rates (first vs. recurring deposit).
+     * Also awards Elite points to the referrer based on the commission earned.
      *
-     * Idempotent: if a referral_commission transaction already exists for the
-     * given source deposit, it returns null without modifying anything.
+     * Idempotent: if a referral_commission already exists for this source
+     * deposit, returns null without modifying anything.
      *
      * @throws \Throwable
      */
@@ -34,7 +38,7 @@ final class ReferralService
         }
 
         return DB::transaction(function () use ($referral, $sourceDeposit): ?Transaction {
-            // Idempotency guard — prevent double-apply on duplicate events.
+            // Idempotency guard.
             $exists = Transaction::where('type', 'referral_commission')
                 ->where('user_id', $referral->referrer_id)
                 ->whereJsonContains('metadata->source_deposit_id', $sourceDeposit->id)
@@ -44,114 +48,231 @@ final class ReferralService
                 return null;
             }
 
+            // Load referrer with tier (lock row for the wallet update below).
+            $referrer = User::with('eliteTier')
+                ->where('id', $referral->referrer_id)
+                ->firstOrFail();
+
+            /** @var EliteTier|null $tier */
+            $tier = $referrer->eliteTier;
+
+            // No tier assigned → no commission, no points.
+            if ($tier === null) {
+                return null;
+            }
+
+            // Determine first vs. recurring deposit.
+            $isFirstDeposit = $referral->first_deposit_tx_id === null;
+            $depositType    = $isFirstDeposit ? 'first' : 'recurring';
+            $commissionRate = $isFirstDeposit
+                ? (string) $tier->first_deposit_commission_rate
+                : (string) $tier->recurring_commission_rate;
+
+            if (bccomp($commissionRate, '0', 4) === 0) {
+                // Rate is zero — mark first deposit if applicable, then exit.
+                if ($isFirstDeposit) {
+                    $referral->update(['first_deposit_tx_id' => $sourceDeposit->id]);
+                }
+                return null;
+            }
+
             $netAmount        = (string) $sourceDeposit->net_amount;
-            $commissionRate   = (string) $referral->commission_rate;
             $commissionAmount = bcmul($netAmount, $commissionRate, 8);
 
-            // Lock referrer's wallet for the update.
-            $wallet = Wallet::where('user_id', $referral->referrer_id)
+            // Lock referrer wallet.
+            $wallet = Wallet::where('user_id', $referrer->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            // Only create a monetary commission transaction when amount > 0.
-            $commissionTx = null;
-            if (bccomp($commissionAmount, '0', 8) > 0) {
-                $newAvailable = bcadd((string) $wallet->balance_available, $commissionAmount, 8);
-                $newTotal     = bcadd((string) $wallet->balance_total,     $commissionAmount, 8);
+            $newAvailable = bcadd((string) $wallet->balance_available, $commissionAmount, 8);
+            $newTotal     = bcadd((string) $wallet->balance_total,     $commissionAmount, 8);
 
-                $wallet->update([
-                    'balance_available' => $newAvailable,
-                    'balance_total'     => $newTotal,
-                ]);
+            $wallet->update([
+                'balance_available' => $newAvailable,
+                'balance_total'     => $newTotal,
+            ]);
 
-                $commissionTx = Transaction::create([
-                    'user_id'        => $referral->referrer_id,
-                    'type'           => 'referral_commission',
-                    'amount'         => $commissionAmount,
-                    'fee_amount'     => '0.00000000',
-                    'net_amount'     => $commissionAmount,
-                    'currency'       => $sourceDeposit->currency,
-                    'status'         => 'confirmed',
-                    'reference_type' => 'deposit',
-                    'reference_id'   => $sourceDeposit->id,
-                    'metadata'       => [
-                        'source_deposit_id'  => $sourceDeposit->id,
-                        'source_user_id'     => $sourceDeposit->user_id,
-                        'commission_rate'    => $commissionRate,
-                        'source_net_amount'  => $netAmount,
-                    ],
-                ]);
+            $commissionTx = Transaction::create([
+                'user_id'        => $referrer->id,
+                'type'           => 'referral_commission',
+                'amount'         => $commissionAmount,
+                'fee_amount'     => '0.00000000',
+                'net_amount'     => $commissionAmount,
+                'currency'       => $sourceDeposit->currency,
+                'status'         => 'confirmed',
+                'reference_type' => 'deposit',
+                'reference_id'   => $sourceDeposit->id,
+                'metadata'       => [
+                    'source_deposit_id'  => $sourceDeposit->id,
+                    'source_user_id'     => $sourceDeposit->user_id,
+                    'commission_rate'    => $commissionRate,
+                    'deposit_type'       => $depositType,
+                    'tier_slug'          => $tier->slug,
+                    'source_net_amount'  => $netAmount,
+                ],
+            ]);
 
-                // Update lifetime total earned on the referral relationship.
-                $referral->increment('total_earned', $commissionAmount);
+            // Update lifetime earned and mark first deposit if applicable.
+            $referral->increment('total_earned', $commissionAmount);
+
+            if ($isFirstDeposit) {
+                $referral->update(['first_deposit_tx_id' => $sourceDeposit->id]);
             }
 
-            // Elite points: always accrued (independent of commission amount).
-            // 1 USD of net deposit = 1 point for the referrer.
-            ElitePoint::create([
-                'user_id'       => $referral->referrer_id,
-                'points'        => $netAmount,
-                'transaction_id' => $commissionTx?->id,
-                'description'   => "Depósito de referido: {$sourceDeposit->id}",
-            ]);
+            // Award Elite points to the referrer based on commission earned × multiplier.
+            $this->creditPoints(
+                userId:        $referrer->id,
+                amount:        $commissionAmount,
+                multiplier:    (string) $tier->multiplier,
+                transactionId: $commissionTx->id,
+                description:   "referral_commission:{$commissionTx->id}",
+            );
 
             return $commissionTx;
         });
     }
 
+    // ── Points for depositor ──────────────────────────────────────────────────
+
     /**
-     * Aggregated summary for a user's referral dashboard.
+     * Award Elite points to the user who made a deposit.
+     * Points = net_amount × user's current tier multiplier (1.0 if no tier).
+     */
+    public function awardPointsForDeposit(Transaction $depositTx): ?ElitePoint
+    {
+        $user = User::with('eliteTier')->findOrFail($depositTx->user_id);
+
+        $multiplier = $user->eliteTier !== null
+            ? (string) $user->eliteTier->multiplier
+            : '1.00';
+
+        $point = $this->creditPoints(
+            userId:        $user->id,
+            amount:        (string) $depositTx->net_amount,
+            multiplier:    $multiplier,
+            transactionId: $depositTx->id,
+            description:   "deposit:{$depositTx->id}",
+        );
+
+        RecalculateEliteTierJob::dispatch($user->id);
+
+        return $point;
+    }
+
+    // ── Points for yield ─────────────────────────────────────────────────────
+
+    /**
+     * Award Elite points to a user for a yield transaction.
+     * Points = net_amount × user's current tier multiplier (1.0 if no tier).
+     */
+    public function awardPointsForYield(Transaction $yieldTx, string $yieldLogId): ?ElitePoint
+    {
+        $user = User::with('eliteTier')->findOrFail($yieldTx->user_id);
+
+        $multiplier = $user->eliteTier !== null
+            ? (string) $user->eliteTier->multiplier
+            : '1.00';
+
+        $point = $this->creditPoints(
+            userId:        $user->id,
+            amount:        (string) $yieldTx->net_amount,
+            multiplier:    $multiplier,
+            transactionId: $yieldTx->id,
+            description:   "yield:{$yieldLogId}",
+        );
+
+        RecalculateEliteTierJob::dispatch($user->id);
+
+        return $point;
+    }
+
+    // ── Points history ────────────────────────────────────────────────────────
+
+    /**
+     * Paginated Elite points history for a user with human-readable source labels.
      *
-     * @return array{
-     *   code: string,
-     *   share_url: string,
-     *   commission_rate: string,
-     *   stats: array{active_count: int, inactive_count: int, total_earned: string},
-     *   elite: array{points: string, tier: string, next_tier: string|null, points_to_next: string|null, progress_pct: int}
-     * }
+     * @return LengthAwarePaginator<array{id: string, points: string, source: string, amount_usd: string, created_at: string}>
+     */
+    public function getPointsHistory(User $user, int $page = 1, int $perPage = 20): LengthAwarePaginator
+    {
+        return ElitePoint::where('user_id', $user->id)
+            ->orderByDesc('created_at')
+            ->paginate(perPage: $perPage, page: $page)
+            ->through(function (ElitePoint $point): array {
+                [$source, $amountUsd] = $this->resolvePointSource($point);
+
+                return [
+                    'id'         => $point->id,
+                    'points'     => number_format((float) $point->points, 2, '.', ''),
+                    'source'     => $source,
+                    'amount_usd' => $amountUsd,
+                    'created_at' => $point->created_at->toIso8601String(),
+                ];
+            });
+    }
+
+    // ── Summary ───────────────────────────────────────────────────────────────
+
+    /**
+     * Aggregated referral + Elite summary for the user's dashboard.
+     *
+     * @return array<string, mixed>
      */
     public function getSummary(User $user): array
     {
+        $user->loadMissing('eliteTier');
+
         $referrals = Referral::where('referrer_id', $user->id)->get();
 
-        $totalEarned    = $referrals->sum('total_earned');
-        $referredIds    = $referrals->pluck('referred_id');
+        $totalEarned     = $referrals->sum('total_earned');
+        $referredIds     = $referrals->pluck('referred_id');
         $activeReferreds = User::whereIn('id', $referredIds)
             ->whereHas('transactions', fn ($q) => $q->where('type', 'deposit')->where('status', 'confirmed'))
             ->count();
 
-        $totalPersonalDeposit = (float) $user->transactions()
-            ->where('type', 'deposit')
-            ->where('status', 'confirmed')
-            ->sum('net_amount');
-
         $totalPoints = (float) ElitePoint::where('user_id', $user->id)->sum('points');
-        $tier        = EliteTier::fromPoints($totalPoints);
-        $nextTier    = $tier->next();
+
+        /** @var EliteTier|null $tier */
+        $tier     = $user->eliteTier;
+        $nextTier = $tier !== null ? app(EliteTierService::class)->getNextTier($tier) : null;
 
         $pointsToNext = $nextTier !== null
-            ? max(0, $nextTier->minPoints() - $totalPoints)
+            ? max(0, (float) $nextTier->min_points - $totalPoints)
             : null;
 
+        $progressPct = $tier !== null ? $tier->progressPct($totalPoints) : 0;
+
         return [
-            'code'            => $user->referral_code,
-            'share_url'       => sprintf((string) config('referrals.share_url_template'), $user->referral_code),
-            'commission_rate' => number_format((float) ($referrals->first()?->commission_rate ?? 0), 4, '.', ''),
-            'stats'           => [
-                'active_count'           => $activeReferreds,
-                'inactive_count'         => $referrals->count() - $activeReferreds,
-                'total_earned'           => number_format((float) $totalEarned, 8, '.', ''),
-                'total_personal_deposit' => number_format($totalPersonalDeposit, 2, '.', ''),
+            'code'      => $user->referral_code,
+            'share_url' => sprintf((string) config('referrals.share_url_template'), $user->referral_code),
+            'stats'     => [
+                'active_count'   => $activeReferreds,
+                'inactive_count' => $referrals->count() - $activeReferreds,
+                'total_earned'   => number_format((float) $totalEarned, 8, '.', ''),
             ],
             'elite' => [
-                'points'        => number_format($totalPoints, 2, '.', ''),
-                'tier'          => $tier->value,
-                'next_tier'     => $nextTier?->value,
-                'points_to_next' => $pointsToNext !== null ? number_format($pointsToNext, 2, '.', '') : null,
-                'progress_pct'  => $tier->progressPct($totalPoints),
+                'points_total' => number_format($totalPoints, 2, '.', ''),
+                'tier'         => $tier !== null ? [
+                    'name'                          => $tier->name,
+                    'slug'                          => $tier->slug,
+                    'multiplier'                    => number_format((float) $tier->multiplier, 2, '.', ''),
+                    'first_deposit_commission_rate' => number_format((float) $tier->first_deposit_commission_rate, 4, '.', ''),
+                    'recurring_commission_rate'     => number_format((float) $tier->recurring_commission_rate, 4, '.', ''),
+                ] : null,
+                'next_tier'     => $nextTier !== null ? [
+                    'name'       => $nextTier->name,
+                    'slug'       => $nextTier->slug,
+                    'min_points' => number_format((float) $nextTier->min_points, 2, '.', ''),
+                ] : null,
+                'points_to_next' => $pointsToNext !== null
+                    ? number_format($pointsToNext, 2, '.', '')
+                    : null,
+                'progress_pct' => $progressPct,
             ],
         ];
     }
+
+    // ── Network ───────────────────────────────────────────────────────────────
 
     /**
      * Paginated list of users referred by $user.
@@ -165,8 +286,6 @@ final class ReferralService
             ->orderByDesc('created_at')
             ->paginate(perPage: $perPage, page: $page);
 
-        // Batch active-status check: one query for the whole page instead of
-        // one EXISTS per row. Build an O(1) lookup set from the result.
         $referredIds = collect($paginator->items())
             ->pluck('referred_id')
             ->filter()
@@ -174,7 +293,7 @@ final class ReferralService
             ->values()
             ->all();
 
-        /** @var array<string, int> $activeSet flip: uuid → 0 for O(1) isset() */
+        /** @var array<string, int> $activeSet */
         $activeSet = array_flip(
             Transaction::whereIn('user_id', $referredIds)
                 ->where('type', 'deposit')
@@ -197,10 +316,12 @@ final class ReferralService
         });
     }
 
+    // ── Earnings ──────────────────────────────────────────────────────────────
+
     /**
-     * Paginated history of referral_commission transactions earned by $user.
+     * Paginated referral_commission transactions for the user.
      *
-     * @return LengthAwarePaginator<array{id: string, amount: string, source_user_masked: string, created_at: string}>
+     * @return LengthAwarePaginator<array{id: string, amount: string, source_user_masked: string, deposit_type: string, created_at: string}>
      */
     public function getEarnings(User $user, int $page = 1, int $perPage = 20): LengthAwarePaginator
     {
@@ -209,8 +330,6 @@ final class ReferralService
             ->orderByDesc('created_at')
             ->paginate(perPage: $perPage, page: $page);
 
-        // Batch-load source users to avoid N+1: collect all source_user_ids
-        // from metadata and do a single query before transforming the page.
         $sourceUserIds = collect($paginator->items())
             ->map(fn (Transaction $tx) => data_get($tx->metadata, 'source_user_id'))
             ->filter()
@@ -218,7 +337,7 @@ final class ReferralService
             ->values()
             ->all();
 
-        /** @var array<string, string> $emailMap uuid → email */
+        /** @var array<string, string> $emailMap */
         $emailMap = User::whereIn('id', $sourceUserIds)
             ->pluck('email', 'id')
             ->all();
@@ -233,14 +352,16 @@ final class ReferralService
                 'id'                 => $tx->id,
                 'amount'             => number_format((float) $tx->net_amount, 8, '.', ''),
                 'source_user_masked' => $sourceMasked,
+                'deposit_type'       => data_get($tx->metadata, 'deposit_type', 'recurring'),
                 'created_at'         => $tx->created_at->toIso8601String(),
             ];
         });
     }
 
+    // ── Code validation ───────────────────────────────────────────────────────
+
     /**
      * Validate a referral code for the pre-registration check.
-     * Returns null when the code does not exist.
      *
      * @return array{valid: bool, referrer_name: string|null}
      */
@@ -258,7 +379,53 @@ final class ReferralService
         ];
     }
 
-    // ── Private helpers ──────────────────────────────────────────────────────
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Insert one ElitePoint row.
+     * points = amount × multiplier (both as BC strings for precision).
+     */
+    private function creditPoints(
+        string  $userId,
+        string  $amount,
+        string  $multiplier,
+        ?string $transactionId,
+        string  $description,
+    ): ElitePoint {
+        $points = bcmul($amount, $multiplier, 2);
+
+        return ElitePoint::create([
+            'user_id'        => $userId,
+            'points'         => $points,
+            'transaction_id' => $transactionId,
+            'description'    => $description,
+        ]);
+    }
+
+    /**
+     * Parse description to derive a human-readable source label and the
+     * originating USD amount from the linked transaction.
+     *
+     * @return array{string, string}  [source_label, amount_usd]
+     */
+    private function resolvePointSource(ElitePoint $point): array
+    {
+        $desc = $point->description ?? '';
+
+        if (str_starts_with($desc, 'deposit:')) {
+            return ['deposit', number_format((float) ($point->transaction?->net_amount ?? 0), 2, '.', '')];
+        }
+
+        if (str_starts_with($desc, 'yield:')) {
+            return ['yield', number_format((float) ($point->transaction?->net_amount ?? 0), 2, '.', '')];
+        }
+
+        if (str_starts_with($desc, 'referral_commission:')) {
+            return ['referral_commission', number_format((float) ($point->transaction?->net_amount ?? 0), 2, '.', '')];
+        }
+
+        return ['other', '0.00'];
+    }
 
     /** "johndoe@example.com" → "jo***@example.com" */
     private function maskEmail(string $email): string

@@ -18,6 +18,7 @@ use App\Listeners\NotifyUserOnStatusChange;
 use App\Listeners\NotifyUserWithdrawalApproved;
 use App\Listeners\NotifyUserWithdrawalRejected;
 use App\Listeners\NotifyUsersOnYieldApplied;
+use App\Listeners\AwardPointsOnYield;
 use App\Listeners\ProcessReferralOnDeposit;
 use App\Listeners\SendWelcomeEmailToNewUser;
 use App\Models\Admin;
@@ -67,5 +68,6 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(CommissionConfigUpdated::class, LogCommissionConfigChange::class);
         Event::listen(DepositConfirmed::class, NotifyUserOnDeposit::class);
         Event::listen(DepositConfirmed::class, ProcessReferralOnDeposit::class);
+        Event::listen(YieldApplied::class, AwardPointsOnYield::class);
     }
 }
