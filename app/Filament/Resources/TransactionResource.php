@@ -103,6 +103,7 @@ final class TransactionResource extends Resource
                         'commission'          => 'Comisión',
                         'yield'               => 'Rendimiento',
                         'referral_commission' => 'Com. Referido',
+                        'investment'          => 'Inversión',
                     ])
                     ->multiple(),
 
@@ -218,6 +219,7 @@ final class TransactionResource extends Resource
             'commission'          => 'gray',
             'yield'               => 'success',
             'referral_commission' => 'purple',
+            'investment'          => 'primary',
             default               => 'gray',
         };
     }
@@ -230,6 +232,7 @@ final class TransactionResource extends Resource
             'commission'          => 'Comisión',
             'yield'               => 'Rendimiento',
             'referral_commission' => 'Com. Referido',
+            'investment'          => 'Inversión',
             default               => $type,
         };
     }

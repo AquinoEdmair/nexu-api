@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\BalanceController;
 use App\Http\Controllers\Api\DepositController;
 use App\Http\Controllers\Api\EliteTierController;
 use App\Http\Controllers\Api\EmailVerificationController;
+use App\Http\Controllers\Api\InvestmentController;
 use App\Http\Controllers\Api\MetricsController;
 use App\Http\Controllers\Api\ReferralController;
 use App\Http\Controllers\Api\TransactionController;
@@ -92,6 +93,11 @@ Route::middleware(['auth:api', 'user.active'])->group(function (): void {
 
     // Yields
     Route::get('/yields', [YieldController::class, 'index']);
+
+    // Investments (available → in_operation)
+    Route::post('/investments', [InvestmentController::class, 'store'])
+        ->middleware('throttle:20,1');
+    Route::get('/investments', [InvestmentController::class, 'index']);
 
     // Referrals
     Route::prefix('referrals')->group(function (): void {
