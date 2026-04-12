@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class Referral extends Model
 {
@@ -17,6 +18,7 @@ final class Referral extends Model
         'referred_id',
         'commission_rate',
         'total_earned',
+        'first_deposit_tx_id',
     ];
 
     protected function casts(): array
@@ -39,5 +41,11 @@ final class Referral extends Model
     public function referred(): BelongsTo
     {
         return $this->belongsTo(User::class, 'referred_id');
+    }
+
+    /** @return BelongsTo<Transaction, $this> */
+    public function firstDepositTransaction(): BelongsTo
+    {
+        return $this->belongsTo(Transaction::class, 'first_deposit_tx_id');
     }
 }

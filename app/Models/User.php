@@ -30,6 +30,8 @@ final class User extends Authenticatable implements MustVerifyEmail
         'password',
         'referral_code',
         'referred_by',
+        'elite_tier_id',
+        'elite_tier_manual_override',
         'status',
         'blocked_reason',
         'blocked_at',
@@ -45,10 +47,11 @@ final class User extends Authenticatable implements MustVerifyEmail
     protected function casts(): array
     {
         return [
-            'email_verified_at'  => 'datetime',
-            'phone_verified_at'  => 'datetime',
-            'blocked_at'         => 'datetime',
-            'password'           => 'hashed',
+            'email_verified_at'          => 'datetime',
+            'phone_verified_at'          => 'datetime',
+            'blocked_at'                 => 'datetime',
+            'password'                   => 'hashed',
+            'elite_tier_manual_override' => 'boolean',
         ];
     }
 
@@ -114,6 +117,12 @@ final class User extends Authenticatable implements MustVerifyEmail
     public function elitePoints(): HasMany
     {
         return $this->hasMany(ElitePoint::class);
+    }
+
+    /** @return BelongsTo<EliteTier, $this> */
+    public function eliteTier(): BelongsTo
+    {
+        return $this->belongsTo(EliteTier::class);
     }
 
     /** @return HasMany<WithdrawalRequest, $this> */
