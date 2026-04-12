@@ -18,6 +18,10 @@ use Illuminate\Validation\ValidationException;
 
 final class UserAuthService
 {
+    public function __construct(
+        private readonly EliteTierService $eliteTierService,
+    ) {}
+
     /**
      * @param  array{email: string, password: string} $credentials
      * @return array{user: User, token: string}
@@ -28,7 +32,7 @@ final class UserAuthService
         /** @var User|null $user */
         $user = User::where('email', $credentials['email'])->first();
 
-        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
+        if (!$user || !Hash::check($credentials['password'], $user->password)) {
             throw ValidationException::withMessages([
                 'email' => [__('auth.failed')],
             ]);
@@ -40,7 +44,7 @@ final class UserAuthService
             ]);
         }
 
-        if (! $user->hasVerifiedEmail()) {
+        if (!$user->hasVerifiedEmail()) {
             throw ValidationException::withMessages([
                 'email' => ['Tu cuenta aún no ha sido verificada. Por favor, revisa tu correo electrónico para confirmarla.'],
             ]);
@@ -57,38 +61,49 @@ final class UserAuthService
      */
     public function register(array $data): array
     {
+        \Illuminate\Support\Facades\Log::info('Register attempt', ['email' => $data['email'], 'ref' => $data['referral_code'] ?? 'NONE']);
+
         $user = DB::transaction(function () use ($data): User {
             $referrer = $this->resolveReferrer($data['referral_code'] ?? null, $data['email']);
 
+            if ($referrer) {
+                \Illuminate\Support\Facades\Log::info('Referrer resolved', ['id' => $referrer->id, 'email' => $referrer->email]);
+            } else if (!empty($data['referral_code'])) {
+                \Illuminate\Support\Facades\Log::info('Referrer NOT resolved for code', ['code' => $data['referral_code']]);
+            }
+
             $user = User::create([
-                'name'          => $data['name'],
-                'email'         => $data['email'],
-                'phone'         => $data['phone'] ?? null,
-                'password'      => Hash::make($data['password']),
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'phone' => $data['phone'] ?? null,
+                'password' => Hash::make($data['password']),
                 'referral_code' => $this->generateUniqueReferralCode(),
-                'referred_by'   => $referrer?->id,
-                'status'        => 'pending',
+                'referred_by' => $referrer?->id,
+                'status' => 'pending',
             ]);
 
             Wallet::create([
-                'user_id'              => $user->id,
-                'balance_available'    => 0,
+                'user_id' => $user->id,
+                'balance_available' => 0,
                 'balance_in_operation' => 0,
-                'balance_total'        => 0,
+                'balance_total' => 0,
             ]);
 
             if ($referrer !== null) {
                 $rate = $this->getReferralCommissionRate();
                 Referral::create([
-                    'referrer_id'     => $referrer->id,
-                    'referred_id'     => $user->id,
+                    'referrer_id' => $referrer->id,
+                    'referred_id' => $user->id,
                     'commission_rate' => $rate,
-                    'total_earned'    => 0,
+                    'total_earned' => 0,
                 ]);
             }
 
             return $user;
         });
+
+        // Ensure user has their initial Elite Tier (e.g. Bronce) if configured for 0 points.
+        $this->eliteTierService->recalculateForUser($user);
 
         // Fires Laravel's built-in listener that calls sendEmailVerificationNotification()
         event(new Registered($user));
@@ -138,10 +153,10 @@ final class UserAuthService
     {
         $status = Password::broker('users')->reset(
             [
-                'email'                 => $data['email'],
-                'password'              => $data['password'],
+                'email' => $data['email'],
+                'password' => $data['password'],
                 'password_confirmation' => $data['password_confirmation'],
-                'token'                 => $data['token'],
+                'token' => $data['token'],
             ],
             function (User $user, string $password): void {
                 $user->forceFill(['password' => $password])->save();
@@ -172,8 +187,10 @@ final class UserAuthService
         $referrer = User::where('referral_code', strtoupper(trim($referralCode)))->first();
 
         // Prevent self-referral (same email address).
-        if ($referrer !== null && $registrantEmail !== null
-            && strtolower($referrer->email) === strtolower($registrantEmail)) {
+        if (
+            $referrer !== null && $registrantEmail !== null
+            && strtolower($referrer->email) === strtolower($registrantEmail)
+        ) {
             throw ValidationException::withMessages([
                 'referral_code' => ['No puedes utilizar tu propio código de referido para registrarte.'],
             ]);
