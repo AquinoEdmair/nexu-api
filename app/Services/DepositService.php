@@ -30,17 +30,34 @@ final class DepositService
     {
         $dto = $this->cryptoProvider->createInvoice($user->id, $amount, $currency);
 
-        return DepositInvoice::create([
-            'user_id'    => $user->id,
-            'invoice_id' => $dto->invoiceId,
-            'currency'   => $dto->currency,
-            'network'    => $dto->network,
-            'address'    => $dto->address,
-            'qr_code_url' => $dto->qrCodeUrl,
-            'status'     => 'awaiting_payment',
+        $invoice = DepositInvoice::create([
+            'user_id'         => $user->id,
+            'invoice_id'      => $dto->invoiceId,
+            'currency'        => $dto->currency,
+            'network'         => $dto->network,
+            'address'         => $dto->address,
+            'qr_code_url'     => $dto->qrCodeUrl,
+            'status'          => 'awaiting_payment',
             'amount_expected' => $amount,
-            'expires_at' => $dto->expiresAt,
+            'expires_at'      => $dto->expiresAt,
         ]);
+
+        // Create a pending Transaction so the deposit appears in the transactions
+        // list immediately, before the webhook confirms it.
+        $pendingTx = Transaction::create([
+            'user_id'    => $user->id,
+            'type'       => 'deposit',
+            'amount'     => (string) $amount,
+            'fee_amount' => '0.00000000',
+            'net_amount' => '0.00000000',
+            'currency'   => $dto->currency,
+            'status'     => 'pending',
+            'metadata'   => ['invoice_id' => $dto->invoiceId],
+        ]);
+
+        $invoice->update(['transaction_id' => $pendingTx->id]);
+
+        return $invoice;
     }
 
     /**
@@ -98,21 +115,40 @@ final class DepositService
             Log::info('DepositService: locking wallet for update', ['user_id' => $userId]);
             $wallet = Wallet::where('user_id', $userId)->lockForUpdate()->firstOrFail();
 
-            // Create deposit transaction
-            $depositTx = Transaction::create([
-                'user_id'        => $userId,
-                'type'           => 'deposit',
-                'amount'         => $amount,
-                'fee_amount'     => $feeAmount,
-                'net_amount'     => $netAmount,
-                'currency'       => $currency,
-                'status'         => 'confirmed',
-                'external_tx_id' => $txHash,
-                'metadata'       => [
-                    'invoice_id'      => $invoice->invoice_id,
-                    'commission_rate' => $commissionRate,
-                ],
-            ]);
+            // Update or create the deposit transaction.
+            // New invoices have a linked pending Transaction — update it.
+            // Fallback: create a new one for invoices created before this change.
+            if ($invoice->transaction_id !== null) {
+                /** @var Transaction $depositTx */
+                $depositTx = Transaction::lockForUpdate()->findOrFail($invoice->transaction_id);
+                $depositTx->update([
+                    'amount'         => $amount,
+                    'fee_amount'     => $feeAmount,
+                    'net_amount'     => $netAmount,
+                    'currency'       => $currency,
+                    'status'         => 'confirmed',
+                    'external_tx_id' => $txHash,
+                    'metadata'       => [
+                        'invoice_id'      => $invoice->invoice_id,
+                        'commission_rate' => $commissionRate,
+                    ],
+                ]);
+            } else {
+                $depositTx = Transaction::create([
+                    'user_id'        => $userId,
+                    'type'           => 'deposit',
+                    'amount'         => $amount,
+                    'fee_amount'     => $feeAmount,
+                    'net_amount'     => $netAmount,
+                    'currency'       => $currency,
+                    'status'         => 'confirmed',
+                    'external_tx_id' => $txHash,
+                    'metadata'       => [
+                        'invoice_id'      => $invoice->invoice_id,
+                        'commission_rate' => $commissionRate,
+                    ],
+                ]);
+            }
 
             // Create commission transaction if fee > 0
             if (bccomp($feeAmount, '0', 8) > 0) {
