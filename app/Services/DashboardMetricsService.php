@@ -7,6 +7,7 @@ namespace App\Services;
 use App\DTOs\DailyVolumeDTO;
 use App\DTOs\FinancialSummaryDTO;
 use App\DTOs\MetricsOverviewDTO;
+use App\Models\DepositInvoice;
 use App\Models\Referral;
 use App\Models\Transaction;
 use App\Models\User;
@@ -172,6 +173,22 @@ final class DashboardMetricsService
             return WithdrawalRequest::where('status', 'pending')
                 ->with('user:id,name,email')
                 ->orderBy('created_at', 'asc')
+                ->limit($limit)
+                ->get();
+        }, collect());
+    }
+
+    /**
+     * Los N depósitos sin confirmar más recientes (DepositInvoice awaiting_payment).
+     *
+     * @return Collection<int, DepositInvoice>
+     */
+    public function getPendingInvoices(int $limit = 10): Collection
+    {
+        return $this->cached("pending_invoices:{$limit}", self::TTL_VOLATILE, function () use ($limit): Collection {
+            return DepositInvoice::awaiting()
+                ->with('user:id,name,email')
+                ->orderBy('created_at', 'desc')
                 ->limit($limit)
                 ->get();
         }, collect());

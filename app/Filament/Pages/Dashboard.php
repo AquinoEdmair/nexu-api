@@ -7,6 +7,7 @@ namespace App\Filament\Pages;
 use App\Filament\Widgets\AdminStatsOverview;
 use App\Filament\Widgets\DepositVolumeChart;
 use App\Filament\Widgets\FinancialSummaryWidget;
+use App\Filament\Widgets\PendingDepositsWidget;
 use App\Filament\Widgets\TopReferrersWidget;
 use App\Filament\Widgets\UserGrowthChart;
 use App\Filament\Widgets\WithdrawalsPendingWidget;
@@ -29,6 +30,7 @@ final class Dashboard extends BaseDashboard
             WithdrawalVolumeChart::class,
             UserGrowthChart::class,
             WithdrawalsPendingWidget::class,
+            PendingDepositsWidget::class,
             TopReferrersWidget::class,
             FinancialSummaryWidget::class,
         ];
