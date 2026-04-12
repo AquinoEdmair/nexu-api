@@ -12,6 +12,7 @@ use Filament\Tables\Table;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use App\Filament\Resources\AdminCommissionLedgerResource\Pages;
 
 final class AdminCommissionLedgerResource extends Resource
 {
@@ -92,8 +93,10 @@ final class AdminCommissionLedgerResource extends Resource
         return false;
     }
 
-    public static function canDelete(Model $record): bool
+    public static function getPages(): array
     {
-        return false;
+        return [
+            'index' => Pages\ManageAdminCommissionLedgers::route('/'),
+        ];
     }
 }
