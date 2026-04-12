@@ -24,11 +24,23 @@ final class DepositService
     /**
      * Creates a deposit invoice via the crypto provider.
      *
+     * The user specifies how much they want to invest (net amount).
+     * The system adds the commission on top so the user always receives 100% of their intended amount.
+     *
+     * Example: user wants $100, commission 5% → provider invoice = $105 → user receives $100.
+     *
      * @throws \RuntimeException if the provider call fails
      */
     public function initiateDeposit(User $user, float $amount, string $currency): DepositInvoice
     {
-        $dto = $this->cryptoProvider->createInvoice($user->id, $amount, $currency);
+        // Calculate gross amount (what the user must actually send)
+        $commissionRate = $this->commissionService->getActiveRate('deposit');
+        $rateDecimal    = bcdiv((string) $commissionRate, '100', 10);
+        $feeAmount      = bcmul((string) $amount, $rateDecimal, 8);         // fee on top
+        $amountCharged  = bcadd((string) $amount, $feeAmount, 8);           // gross = net + fee
+
+        // Ask the crypto provider for the gross amount
+        $dto = $this->cryptoProvider->createInvoice($user->id, (float) $amountCharged, $currency);
 
         $invoice = DepositInvoice::create([
             'user_id'         => $user->id,
@@ -38,21 +50,24 @@ final class DepositService
             'address'         => $dto->address,
             'qr_code_url'     => $dto->qrCodeUrl,
             'status'          => 'awaiting_payment',
-            'amount_expected' => $amount,
+            'amount_expected' => $amountCharged,  // gross (what user will send)
             'expires_at'      => $dto->expiresAt,
         ]);
 
-        // Create a pending Transaction so the deposit appears in the transactions
-        // list immediately, before the webhook confirms it.
+        // Create a pending Transaction. amount = gross, net = intended net amount.
         $pendingTx = Transaction::create([
             'user_id'    => $user->id,
             'type'       => 'deposit',
-            'amount'     => (string) $amount,
-            'fee_amount' => '0.00000000',
-            'net_amount' => '0.00000000',
+            'amount'     => (string) $amountCharged,
+            'fee_amount' => (string) $feeAmount,
+            'net_amount' => (string) $amount,
             'currency'   => $dto->currency,
             'status'     => 'pending',
-            'metadata'   => ['invoice_id' => $dto->invoiceId],
+            'metadata'   => [
+                'invoice_id'      => $dto->invoiceId,
+                'commission_rate' => $commissionRate,
+                'net_amount'      => (string) $amount,
+            ],
         ]);
 
         $invoice->update(['transaction_id' => $pendingTx->id]);
@@ -107,24 +122,28 @@ final class DepositService
                 'user_id'    => $userId,
             ]);
 
+            // Commission: the gross amount was already inflated at initiation.
+            // net_amount = stored in pending tx metadata (what user wanted to invest)
+            // fee_amount = gross - net
             $commissionRate = $this->commissionService->getActiveRate('deposit');
             $rateDecimal    = bcdiv((string) $commissionRate, '100', 10);
-            $feeAmount      = bcmul((string)$amount, $rateDecimal, 8);
-            $netAmount      = bcsub((string)$amount, $feeAmount, 8);
+
+            // Recalculate from gross: net = gross / (1 + rate), fee = gross - net
+            $divisor   = bcadd('1', $rateDecimal, 10);
+            $netAmount = bcdiv((string)$amount, $divisor, 8);
+            $feeAmount = bcsub((string)$amount, $netAmount, 8);
 
             Log::info('DepositService: locking wallet for update', ['user_id' => $userId]);
             $wallet = Wallet::where('user_id', $userId)->lockForUpdate()->firstOrFail();
 
             // Update or create the deposit transaction.
-            // New invoices have a linked pending Transaction — update it.
-            // Fallback: create a new one for invoices created before this change.
             if ($invoice->transaction_id !== null) {
                 /** @var Transaction $depositTx */
                 $depositTx = Transaction::lockForUpdate()->findOrFail($invoice->transaction_id);
                 $depositTx->update([
-                    'amount'         => $amount,
-                    'fee_amount'     => $feeAmount,
-                    'net_amount'     => $netAmount,
+                    'amount'         => $amount,       // gross (what was actually received)
+                    'fee_amount'     => $feeAmount,    // admin keeps this
+                    'net_amount'     => $netAmount,    // user receives this
                     'currency'       => $currency,
                     'status'         => 'confirmed',
                     'external_tx_id' => $txHash,
@@ -150,22 +169,7 @@ final class DepositService
                 ]);
             }
 
-            // Create commission transaction if fee > 0
-            if (bccomp($feeAmount, '0', 8) > 0) {
-                Transaction::create([
-                    'user_id'        => $userId,
-                    'type'           => 'commission',
-                    'amount'         => $feeAmount,
-                    'fee_amount'     => '0.00000000',
-                    'net_amount'     => $feeAmount,
-                    'currency'       => $currency,
-                    'status'         => 'confirmed',
-                    'reference_type' => 'deposit',
-                    'reference_id'   => $depositTx->id,
-                ]);
-            }
-
-            // Update wallet balance
+            // Credit user wallet with NET amount only (100% of their intended investment)
             $newInOperation = bcadd((string)$wallet->balance_in_operation, (string)$netAmount, 8);
             $newTotal       = bcadd((string)$wallet->balance_available, (string)$newInOperation, 8);
 
@@ -184,17 +188,31 @@ final class DepositService
             ]);
 
             return [
-                'userId'      => $userId,
-                'transaction' => $depositTx,
-                'netAmount'   => $netAmount,
-                'currency'    => $currency,
+                'userId'         => $userId,
+                'transaction'    => $depositTx,
+                'netAmount'      => $netAmount,
+                'feeAmount'      => $feeAmount,
+                'commissionRate' => $commissionRate,
+                'currency'       => $currency,
             ];
         });
 
-        // 4. Fire event outside transaction (for listeners/notifications)
+        // 4. Fire events and record ledger entry outside transaction
         if ($result !== null) {
             $user = User::findOrFail($result['userId']);
             DepositConfirmed::dispatch($user, $result['transaction'], $result['netAmount'], $result['currency']);
+
+            // Record commission to admin ledger (only if fee > 0)
+            if (bccomp((string)$result['feeAmount'], '0', 8) > 0) {
+                $this->commissionService->recordToLedger(
+                    sourceType:  'deposit',
+                    sourceId:    $result['transaction']->id,
+                    userId:      $result['userId'],
+                    amount:      (float) $result['feeAmount'],
+                    rate:        $result['commissionRate'],
+                    description: "Comisión de depósito — {$result['currency']}",
+                );
+            }
         }
     }
 

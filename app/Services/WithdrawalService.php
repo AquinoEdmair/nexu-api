@@ -20,8 +20,18 @@ use Illuminate\Support\Facades\DB;
 
 final class WithdrawalService
 {
+    public function __construct(
+        private readonly CommissionService $commissionService,
+    ) {}
+
     /**
      * Create a withdrawal request and immediately reserve funds from balance_available.
+     *
+     * Commission logic:
+     *   - User requests to withdraw $amount (gross)
+     *   - fee_amount = amount × commission_rate
+     *   - net_amount = amount - fee_amount  ← what user actually receives
+     *   - The full $amount is reserved from the wallet (fee included)
      *
      * @throws InsufficientBalanceException
      * @throws \Throwable
@@ -41,8 +51,15 @@ final class WithdrawalService
                 );
             }
 
-            $newAvailable = round((float) $wallet->balance_available - (float) $dto->amount, 8);
-            $newTotal     = round((float) $wallet->balance_total - (float) $dto->amount, 8);
+            // Calculate commission
+            $commissionRate = $this->commissionService->getActiveRate('withdrawal');
+            $rateDecimal    = bcdiv((string) $commissionRate, '100', 10);
+            $feeAmount      = bcmul((string) $dto->amount, $rateDecimal, 8);
+            $netAmount      = bcsub((string) $dto->amount, $feeAmount, 8);
+
+            // Reserve the full requested amount (fee is part of it)
+            $newAvailable = bcsub((string) $wallet->balance_available, (string) $dto->amount, 8);
+            $newTotal     = bcsub((string) $wallet->balance_total, (string) $dto->amount, 8);
 
             $wallet->update([
                 'balance_available' => $newAvailable,
@@ -52,6 +69,9 @@ final class WithdrawalService
             $request = WithdrawalRequest::create([
                 'user_id'             => $user->id,
                 'amount'              => $dto->amount,
+                'fee_amount'          => $feeAmount,
+                'net_amount'          => $netAmount,
+                'commission_rate'     => $commissionRate,
                 'currency'            => $dto->currency,
                 'destination_address' => $dto->destinationAddress,
                 'status'              => 'pending',
@@ -60,7 +80,7 @@ final class WithdrawalService
             activity()
                 ->causedBy($user)
                 ->performedOn($request)
-                ->log("Usuario {$user->email} solicitó retiro por \${$dto->amount}");
+                ->log("Usuario {$user->email} solicitó retiro por \${$dto->amount} (comisión: {$commissionRate}%, neto: \${$netAmount})");
 
             return $request;
         });
@@ -68,8 +88,6 @@ final class WithdrawalService
 
     /**
      * Approve a pending withdrawal request.
-     *
-     * Status is re-checked after acquiring a row lock to prevent concurrent double-approval.
      *
      * @throws InvalidStatusTransitionException
      * @throws \Throwable
@@ -102,9 +120,7 @@ final class WithdrawalService
 
     /**
      * Reject a pending or approved withdrawal request and release funds back.
-     *
-     * Status is re-checked after acquiring a row lock to prevent concurrent double-rejection
-     * or reject-after-complete race conditions.
+     * Full amount is returned (fee is not charged on rejected withdrawals).
      *
      * @throws InvalidStatusTransitionException
      * @throws \Throwable
@@ -123,6 +139,7 @@ final class WithdrawalService
                 'reviewed_at'      => now(),
             ]);
 
+            // Return the FULL amount (no fee charged on rejected withdrawals)
             $this->releaseToWallet($fresh);
             $this->createWithdrawalTransaction($fresh, 'rejected');
 
@@ -140,9 +157,8 @@ final class WithdrawalService
     }
 
     /**
-     * Mark an approved withdrawal request as completed with a blockchain tx hash.
-     *
-     * Status is re-checked after acquiring a row lock to prevent concurrent double-completion.
+     * Mark an approved withdrawal request as completed.
+     * Records the commission fee to the admin ledger.
      *
      * @throws InvalidStatusTransitionException
      * @throws \Throwable
@@ -159,6 +175,7 @@ final class WithdrawalService
                 'tx_hash' => $txHash,
             ]);
 
+            // Transaction records the NET amount sent to user
             $this->createWithdrawalTransaction($fresh, 'confirmed');
 
             return $fresh;
@@ -169,6 +186,19 @@ final class WithdrawalService
             ->performedOn($result)
             ->log("Admin {$admin->name} completó retiro {$result->id}, tx_hash: {$txHash}");
 
+        // Record commission to admin ledger OUTSIDE the transaction
+        $feeAmount = (float) $result->fee_amount;
+        if ($feeAmount > 0) {
+            $this->commissionService->recordToLedger(
+                sourceType:  'withdrawal',
+                sourceId:    $result->id,
+                userId:      $result->user_id,
+                amount:      $feeAmount,
+                rate:        (float) $result->commission_rate,
+                description: "Comisión de retiro — {$result->currency}",
+            );
+        }
+
         $result->load('user')->user->notify(new WithdrawalCompletedNotification($result));
 
         return $result;
@@ -176,9 +206,7 @@ final class WithdrawalService
 
     /**
      * Cancel a pending withdrawal request (user-initiated).
-     *
-     * Ownership is verified before entering the transaction. Status is re-checked
-     * after acquiring a row lock to prevent a cancel/approve race condition.
+     * Full amount is returned (no fee on cancellations).
      *
      * @throws AuthorizationException
      * @throws InvalidStatusTransitionException
@@ -190,7 +218,7 @@ final class WithdrawalService
             throw new AuthorizationException('Solo el propietario puede cancelar esta solicitud.');
         }
 
-        $result = DB::transaction(function () use ($request): WithdrawalRequest {
+        $result = DB::transaction(function () use ($request): WithdrawalRequest {\
             $fresh = WithdrawalRequest::lockForUpdate()->findOrFail($request->id);
 
             $this->assertStatus($fresh, 'pending');
@@ -237,7 +265,7 @@ final class WithdrawalService
     }
 
     /**
-     * Release funds back to the user's wallet.
+     * Release the full amount back to the user's wallet.
      * Must run inside an enclosing DB::transaction with the WithdrawalRequest already locked.
      */
     private function releaseToWallet(WithdrawalRequest $request): void
@@ -248,13 +276,14 @@ final class WithdrawalService
             ->firstOrFail();
 
         $wallet->update([
-            'balance_available' => round((float) $wallet->balance_available + (float) $request->amount, 8),
-            'balance_total'     => round((float) $wallet->balance_total + (float) $request->amount, 8),
+            'balance_available' => bcadd((string) $wallet->balance_available, (string) $request->amount, 8),
+            'balance_total'     => bcadd((string) $wallet->balance_total, (string) $request->amount, 8),
         ]);
     }
 
     /**
      * Create an immutable transaction record for this withdrawal.
+     * net_amount reflects what the user actually receives (after commission).
      * Must run inside an enclosing DB::transaction with the WithdrawalRequest already locked.
      */
     private function createWithdrawalTransaction(WithdrawalRequest $request, string $txStatus): void
@@ -263,8 +292,8 @@ final class WithdrawalService
             'user_id'        => $request->user_id,
             'type'           => 'withdrawal',
             'amount'         => $request->amount,
-            'fee_amount'     => 0,
-            'net_amount'     => '-' . $request->amount,
+            'fee_amount'     => $request->fee_amount,
+            'net_amount'     => '-' . $request->net_amount,
             'currency'       => $request->currency,
             'status'         => $txStatus,
             'reference_type' => 'withdrawal_request',

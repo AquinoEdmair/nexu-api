@@ -41,7 +41,7 @@ final class CommissionConfigResource extends Resource
                 TextColumn::make('type')
                     ->label('Tipo')
                     ->badge()
-                    ->color(fn (string $state): string => $state === 'deposit' ? 'info' : 'purple')
+                    ->color(fn (string $state): string => $state === 'deposit' ? 'info' : 'warning')
                     ->formatStateUsing(fn (string $state): string => self::typeLabel($state)),
 
                 TextColumn::make('value')
@@ -79,8 +79,8 @@ final class CommissionConfigResource extends Resource
                 SelectFilter::make('type')
                     ->label('Tipo')
                     ->options([
-                        'deposit'  => 'Depósito',
-                        'referral' => 'Referido',
+                        'deposit'    => 'Depósito',
+                        'withdrawal' => 'Retiro',
                     ]),
 
                 TernaryFilter::make('is_active')
@@ -119,18 +119,18 @@ final class CommissionConfigResource extends Resource
     public static function typeLabel(string $type): string
     {
         return match ($type) {
-            'deposit'  => 'Depósito',
-            'referral' => 'Referido',
-            default    => $type,
+            'deposit'    => 'Depósito',
+            'withdrawal' => 'Retiro',
+            default      => $type,
         };
     }
 
     public static function typeColor(string $type): string
     {
         return match ($type) {
-            'deposit'  => 'info',
-            'referral' => 'purple',
-            default    => 'gray',
+            'deposit'    => 'info',
+            'withdrawal' => 'warning',
+            default      => 'gray',
         };
     }
 }

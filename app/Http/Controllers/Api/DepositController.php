@@ -8,6 +8,7 @@ use App\DTOs\TransactionFilterDTO;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\InitiateDepositRequest;
 use App\Models\User;
+use App\Services\CommissionService;
 use App\Services\DepositService;
 use App\Services\TransactionQueryService;
 use Illuminate\Http\JsonResponse;
@@ -16,9 +17,31 @@ use Illuminate\Http\Request;
 final class DepositController extends Controller
 {
     public function __construct(
-        private readonly DepositService $depositService,
+        private readonly DepositService          $depositService,
         private readonly TransactionQueryService $transactionService,
+        private readonly CommissionService       $commissionService,
     ) {}
+
+    /**
+     * Return the active deposit commission rate and breakdown preview.
+     * Allows the frontend to show: invest $X → send $Y.
+     */
+    public function commissionRate(Request $request): JsonResponse
+    {
+        $rate         = $this->commissionService->getActiveRate('deposit');
+        $amount       = (float) $request->query('amount', 0);
+        $fee          = round($amount * $rate / 100, 8);
+        $amountCharged = round($amount + $fee, 8);
+
+        return response()->json([
+            'data' => [
+                'rate'           => $rate,
+                'net_amount'     => $amount,          // what user receives in wallet
+                'fee_amount'     => $fee,             // commission on top
+                'amount_charged' => $amountCharged,   // what user must send
+            ],
+        ]);
+    }
 
     /**
      * Generate a deposit address via the crypto provider.

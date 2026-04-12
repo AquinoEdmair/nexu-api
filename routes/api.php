@@ -72,6 +72,7 @@ Route::middleware(['auth:api', 'user.active'])->group(function (): void {
     Route::get('/balance/history', [BalanceController::class, 'history']);
 
     // Deposits
+    Route::get('/deposits/commission-rate', [DepositController::class, 'commissionRate']);
     Route::post('/deposits/initiate', [DepositController::class, 'initiate'])
         ->middleware('throttle:10,1');
     Route::get('/deposits', [DepositController::class, 'index']);
@@ -79,6 +80,7 @@ Route::middleware(['auth:api', 'user.active'])->group(function (): void {
     Route::get('/deposits/invoices', [DepositController::class, 'invoices']);
 
     // Withdrawals
+    Route::get('/withdrawals/commission-rate', [WithdrawalController::class, 'commissionRate']);
     Route::post('/withdrawals', [WithdrawalController::class, 'store'])
         ->middleware('throttle:10,1');
     Route::get('/withdrawals', [WithdrawalController::class, 'index']);

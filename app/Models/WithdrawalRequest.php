@@ -18,6 +18,9 @@ final class WithdrawalRequest extends Model
     protected $fillable = [
         'user_id',
         'amount',
+        'fee_amount',
+        'net_amount',
+        'commission_rate',
         'currency',
         'destination_address',
         'status',
@@ -30,8 +33,11 @@ final class WithdrawalRequest extends Model
     protected function casts(): array
     {
         return [
-            'amount'      => 'decimal:8',
-            'reviewed_at' => 'datetime',
+            'amount'          => 'decimal:8',
+            'fee_amount'      => 'decimal:8',
+            'net_amount'      => 'decimal:8',
+            'commission_rate' => 'decimal:4',
+            'reviewed_at'     => 'datetime',
         ];
     }
 

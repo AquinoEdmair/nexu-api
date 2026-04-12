@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateWithdrawalRequest;
 use App\Models\User;
 use App\Models\WithdrawalRequest;
+use App\Services\CommissionService;
 use App\Services\WithdrawalService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
@@ -20,7 +21,28 @@ final class WithdrawalController extends Controller
 {
     public function __construct(
         private readonly WithdrawalService $withdrawalService,
+        private readonly CommissionService $commissionService,
     ) {}
+
+    /**
+     * Return the active withdrawal commission rate and breakdown preview.
+     */
+    public function commissionRate(Request $request): JsonResponse
+    {
+        $rate      = $this->commissionService->getActiveRate('withdrawal');
+        $amount    = (float) $request->query('amount', 0);
+        $fee       = round($amount * $rate / 100, 8);
+        $netAmount = round($amount - $fee, 8);
+
+        return response()->json([
+            'data' => [
+                'rate'       => $rate,
+                'amount'     => $amount,     // requested amount
+                'fee_amount' => $fee,        // commission kept by admin
+                'net_amount' => $netAmount,  // what user actually receives
+            ],
+        ]);
+    }
 
     /**
      * Create a withdrawal request and reserve funds.
@@ -116,6 +138,9 @@ final class WithdrawalController extends Controller
         return [
             'id'                  => $w->id,
             'amount'              => $w->amount,
+            'fee_amount'          => $w->fee_amount,
+            'net_amount'          => $w->net_amount,
+            'commission_rate'     => $w->commission_rate,
             'currency'            => $w->currency,
             'destination_address' => $w->destination_address,
             'status'              => $w->status,

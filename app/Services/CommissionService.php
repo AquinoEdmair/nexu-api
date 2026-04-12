@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Events\CommissionConfigUpdated;
 use App\Models\Admin;
+use App\Models\AdminCommissionLedger;
 use App\Models\CommissionConfig;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -135,6 +136,7 @@ final class CommissionService
 
     /**
      * Return all configs for a type ordered by created_at DESC.
+     * Valid types: 'deposit', 'withdrawal'
      *
      * @return Collection<int, CommissionConfig>
      */
@@ -144,6 +146,51 @@ final class CommissionService
             ->with('createdBy:id,name')
             ->orderBy('created_at', 'desc')
             ->get();
+    }
+
+    /**
+     * Record a commission entry to the admin ledger.
+     *
+     * Call this after the source transaction is committed.
+     */
+    public function recordToLedger(
+        string $sourceType,
+        string $sourceId,
+        string $userId,
+        float  $amount,
+        float  $rate,
+        ?string $description = null,
+    ): AdminCommissionLedger {
+        return AdminCommissionLedger::create([
+            'source_type'     => $sourceType,
+            'source_id'       => $sourceId,
+            'user_id'         => $userId,
+            'amount'          => number_format($amount, 8, '.', ''),
+            'commission_rate' => $rate,
+            'description'     => $description,
+        ]);
+    }
+
+    /**
+     * Return total commissions grouped by type.
+     *
+     * @return array{deposit: float, withdrawal: float, total: float}
+     */
+    public function getAdminTotals(): array
+    {
+        $rows = AdminCommissionLedger::selectRaw('source_type, SUM(amount) as total')
+            ->groupBy('source_type')
+            ->pluck('total', 'source_type')
+            ->toArray();
+
+        $deposit    = (float) ($rows['deposit']    ?? 0);
+        $withdrawal = (float) ($rows['withdrawal'] ?? 0);
+
+        return [
+            'deposit'    => $deposit,
+            'withdrawal' => $withdrawal,
+            'total'      => $deposit + $withdrawal,
+        ];
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
