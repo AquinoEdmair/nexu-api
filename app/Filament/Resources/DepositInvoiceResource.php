@@ -24,11 +24,11 @@ final class DepositInvoiceResource extends Resource
     protected static ?string $model = DepositInvoice::class;
 
     protected static ?string $navigationIcon  = 'heroicon-o-qr-code';
-    protected static ?string $navigationLabel = 'Invoices de depósito';
+    protected static ?string $navigationLabel = 'Historial de depósitos';
     protected static ?string $navigationGroup = 'Finanzas';
     protected static ?int    $navigationSort  = 3;
-    protected static ?string $modelLabel      = 'Invoice';
-    protected static ?string $pluralModelLabel = 'Invoices de depósito';
+    protected static ?string $modelLabel      = 'Depósito';
+    protected static ?string $pluralModelLabel = 'Historial de depósitos';
 
     public static function form(Form $form): Form
     {
