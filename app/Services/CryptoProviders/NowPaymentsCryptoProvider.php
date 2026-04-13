@@ -70,6 +70,29 @@ final class NowPaymentsCryptoProvider implements CryptoProviderInterface
         );
     }
 
+    /**
+     * Returns the currency codes enabled for this NowPayments merchant account.
+     * Calls GET /v1/merchant/coins.
+     *
+     * @return string[]
+     */
+    public function getMerchantCurrencies(): array
+    {
+        $response = Http::withHeaders([
+            'x-api-key' => $this->apiKey,
+        ])->get("{$this->baseUrl}/merchant/coins");
+
+        if ($response->failed()) {
+            Log::error('NowPayments getMerchantCurrencies failed', [
+                'status' => $response->status(),
+                'body'   => $response->json(),
+            ]);
+            throw new RuntimeException('No se pudieron obtener las monedas configuradas en NowPayments.');
+        }
+
+        return $response->json('selectedCurrencies', []);
+    }
+
     public function verifyWebhookSignature(string $payload, string $signature): bool
     {
         $secret = config('services.crypto.webhook_secret', '');

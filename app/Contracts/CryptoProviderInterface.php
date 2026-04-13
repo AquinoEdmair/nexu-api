@@ -19,4 +19,13 @@ interface CryptoProviderInterface
      * Verifies the HMAC-SHA256 signature of a webhook payload.
      */
     public function verifyWebhookSignature(string $payload, string $signature): bool;
+
+    /**
+     * Returns the list of currency codes enabled for this merchant account.
+     * Each entry is the provider's internal code (e.g. "btc", "usdttrc20").
+     *
+     * @return string[]
+     * @throws \RuntimeException if the provider API call fails
+     */
+    public function getMerchantCurrencies(): array;
 }

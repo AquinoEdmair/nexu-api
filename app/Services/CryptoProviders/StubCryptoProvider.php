@@ -40,6 +40,11 @@ final class StubCryptoProvider implements CryptoProviderInterface
         );
     }
 
+    public function getMerchantCurrencies(): array
+    {
+        return ['btc', 'eth', 'usdttrc20'];
+    }
+
     public function verifyWebhookSignature(string $payload, string $signature): bool
     {
         $secret = config('services.crypto.webhook_secret', '');
