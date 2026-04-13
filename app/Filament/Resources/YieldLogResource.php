@@ -191,4 +191,3 @@ final class YieldLogResource extends Resource
         };
     }
 }
-}
