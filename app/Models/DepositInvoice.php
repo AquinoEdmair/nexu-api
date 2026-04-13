@@ -22,6 +22,7 @@ final class DepositInvoice extends Model
         'qr_code_url',
         'status',
         'amount_expected',
+        'pay_amount',
         'amount_received',
         'tx_hash',
         'transaction_id',
@@ -33,6 +34,7 @@ final class DepositInvoice extends Model
     {
         return [
             'amount_expected' => 'decimal:8',
+            'pay_amount'      => 'decimal:8',
             'amount_received' => 'decimal:8',
             'expires_at'      => 'datetime',
             'completed_at'    => 'datetime',

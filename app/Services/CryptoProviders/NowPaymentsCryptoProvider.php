@@ -59,6 +59,7 @@ final class NowPaymentsCryptoProvider implements CryptoProviderInterface
             network:   $this->getNetwork($currency),
             qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' . urlencode($currency . ':' . $data['pay_address']),
             expiresAt: Carbon::now()->addHours(24),
+            payAmount: isset($data['pay_amount']) ? (string) $data['pay_amount'] : null,
         );
     }
 

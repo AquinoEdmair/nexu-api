@@ -25,6 +25,10 @@ final class StubCryptoProvider implements CryptoProviderInterface
     {
         $invoiceId = 'INV-' . Str::random(16);
 
+        // Simulate a rough conversion rate for display purposes
+        $rates = ['BTC' => 0.0000156, 'ETH' => 0.000285, 'USDT' => 1.0];
+        $rate = $rates[$currency] ?? 1.0;
+
         return new CryptoInvoiceDTO(
             invoiceId: $invoiceId,
             address:   $this->generateFakeAddress($currency),
@@ -32,6 +36,7 @@ final class StubCryptoProvider implements CryptoProviderInterface
             network:   self::NETWORK_MAP[$currency] ?? null,
             qrCodeUrl: null,
             expiresAt: Carbon::now()->addHours(24),
+            payAmount: number_format($amount * $rate, 8, '.', ''),
         );
     }
 

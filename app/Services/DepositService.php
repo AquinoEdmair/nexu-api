@@ -50,7 +50,8 @@ final class DepositService
             'address'         => $dto->address,
             'qr_code_url'     => $dto->qrCodeUrl,
             'status'          => 'awaiting_payment',
-            'amount_expected' => $amountCharged,  // gross (what user will send)
+            'amount_expected' => $amountCharged,  // USD gross
+            'pay_amount'      => $dto->payAmount, // crypto amount to send
             'expires_at'      => $dto->expiresAt,
         ]);
 

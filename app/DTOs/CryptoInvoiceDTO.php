@@ -15,5 +15,6 @@ final readonly class CryptoInvoiceDTO
         public ?string $network,
         public ?string $qrCodeUrl,
         public Carbon  $expiresAt,
+        public ?string $payAmount = null,  // crypto units to send (e.g. "0.00156")
     ) {}
 }
