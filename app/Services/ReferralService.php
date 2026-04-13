@@ -441,6 +441,10 @@ final class ReferralService
             return [__('comisión_referido'), number_format((float) ($point->transaction?->net_amount ?? 0), 2, '.', '')];
         }
 
+        if (str_starts_with($desc, 'admin:')) {
+            return [__('ajuste_admin'), '0.00'];
+        }
+
         return [__('otro'), '0.00'];
     }
 

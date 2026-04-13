@@ -220,6 +220,7 @@ final class TransactionResource extends Resource
             'yield'               => 'success',
             'referral_commission' => 'purple',
             'investment'          => 'primary',
+            'admin_adjustment'    => 'danger',
             default               => 'gray',
         };
     }
@@ -233,6 +234,7 @@ final class TransactionResource extends Resource
             'yield'               => 'Rendimiento',
             'referral_commission' => 'Com. Referido',
             'investment'          => 'Inversión',
+            'admin_adjustment'    => 'Ajuste admin',
             default               => $type,
         };
     }

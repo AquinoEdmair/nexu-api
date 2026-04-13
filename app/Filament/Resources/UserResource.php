@@ -8,6 +8,7 @@ use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers;
 use App\Models\EliteTier;
 use App\Models\User;
+use App\Services\AdminAdjustmentService;
 use App\Services\EliteTierService;
 use App\Services\UserService;
 use Filament\Forms\Components\Section;
@@ -335,6 +336,119 @@ class UserResource extends Resource
 
                         Notification::make()
                             ->title('Tier recalculado')
+                            ->success()
+                            ->send();
+                    }),
+
+                Action::make('adjustBalance')
+                    ->label('Ajustar balance')
+                    ->icon('heroicon-o-banknotes')
+                    ->color('info')
+                    ->form([
+                        Select::make('field')
+                            ->label('Campo')
+                            ->options([
+                                'balance_available'    => 'Balance disponible',
+                                'balance_in_operation' => 'En operación',
+                            ])
+                            ->required(),
+
+                        Select::make('direction')
+                            ->label('Tipo')
+                            ->options([
+                                'credit' => 'Crédito (sumar)',
+                                'debit'  => 'Débito (restar)',
+                            ])
+                            ->required(),
+
+                        TextInput::make('amount')
+                            ->label('Monto (USD)')
+                            ->required()
+                            ->numeric()
+                            ->minValue(0.00000001)
+                            ->step(0.01)
+                            ->placeholder('0.00'),
+
+                        Textarea::make('reason')
+                            ->label('Motivo')
+                            ->required()
+                            ->minLength(5)
+                            ->maxLength(500),
+                    ])
+                    ->action(function (User $record, array $data): void {
+                        $delta = $data['direction'] === 'credit'
+                            ? number_format((float) $data['amount'], 8, '.', '')
+                            : '-' . number_format((float) $data['amount'], 8, '.', '');
+
+                        /** @var \App\Models\Admin $admin */
+                        $admin = auth()->user();
+
+                        try {
+                            app(AdminAdjustmentService::class)->adjustWallet(
+                                $record,
+                                $data['field'],
+                                $delta,
+                                $data['reason'],
+                                (string) $admin->id,
+                            );
+
+                            Notification::make()
+                                ->title('Balance ajustado')
+                                ->success()
+                                ->send();
+                        } catch (\InvalidArgumentException $e) {
+                            Notification::make()
+                                ->title('No se puede aplicar')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+
+                Action::make('adjustPoints')
+                    ->label('Ajustar puntos')
+                    ->icon('heroicon-o-star')
+                    ->color('warning')
+                    ->form([
+                        Select::make('direction')
+                            ->label('Tipo')
+                            ->options([
+                                'award'  => 'Agregar puntos',
+                                'deduct' => 'Quitar puntos',
+                            ])
+                            ->required(),
+
+                        TextInput::make('points')
+                            ->label('Puntos')
+                            ->required()
+                            ->numeric()
+                            ->minValue(0.01)
+                            ->step(0.01)
+                            ->placeholder('0.00'),
+
+                        Textarea::make('reason')
+                            ->label('Motivo')
+                            ->required()
+                            ->minLength(5)
+                            ->maxLength(500),
+                    ])
+                    ->action(function (User $record, array $data): void {
+                        $delta = $data['direction'] === 'award'
+                            ? number_format((float) $data['points'], 2, '.', '')
+                            : '-' . number_format((float) $data['points'], 2, '.', '');
+
+                        /** @var \App\Models\Admin $admin */
+                        $admin = auth()->user();
+
+                        app(AdminAdjustmentService::class)->adjustPoints(
+                            $record,
+                            $delta,
+                            $data['reason'],
+                            (string) $admin->id,
+                        );
+
+                        Notification::make()
+                            ->title('Puntos ajustados')
                             ->success()
                             ->send();
                     }),
