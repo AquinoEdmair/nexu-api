@@ -90,7 +90,7 @@ final class NowPaymentsCryptoProvider implements CryptoProviderInterface
             throw new RuntimeException('No se pudieron obtener las monedas configuradas en NowPayments.');
         }
 
-        return $response->json('selectedCurrencies', []);
+        return $response->json('currencies', []);
     }
 
     public function verifyWebhookSignature(string $payload, string $signature): bool

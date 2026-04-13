@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\CryptoCurrencyResource\Pages\CreateCryptoCurrency;
 use App\Filament\Resources\CryptoCurrencyResource\Pages\EditCryptoCurrency;
 use App\Filament\Resources\CryptoCurrencyResource\Pages\ListCryptoCurrencies;
 use App\Models\CryptoCurrency;
@@ -13,11 +12,11 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
-use Filament\Tables\Actions\DeleteAction;
 use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 final class CryptoCurrencyResource extends Resource
 {
@@ -116,7 +115,6 @@ final class CryptoCurrencyResource extends Resource
             ->defaultSort('sort_order')
             ->actions([
                 EditAction::make(),
-                DeleteAction::make(),
             ])
             ->bulkActions([]);
     }
@@ -125,9 +123,11 @@ final class CryptoCurrencyResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => ListCryptoCurrencies::route('/'),
-            'create' => CreateCryptoCurrency::route('/create'),
-            'edit'   => EditCryptoCurrency::route('/{record}/edit'),
+            'index' => ListCryptoCurrencies::route('/'),
+            'edit'  => EditCryptoCurrency::route('/{record}/edit'),
         ];
     }
+
+    public static function canCreate(): bool { return false; }
+    public static function canDelete(Model $record): bool { return false; }
 }
