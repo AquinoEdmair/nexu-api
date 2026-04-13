@@ -6,6 +6,7 @@ namespace App\Services\CryptoProviders;
 
 use App\Contracts\CryptoProviderInterface;
 use App\DTOs\CryptoInvoiceDTO;
+use App\Models\CryptoCurrency;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -28,24 +29,30 @@ final class NowPaymentsCryptoProvider implements CryptoProviderInterface
 
     public function createInvoice(string $userId, float $amount, string $currency): CryptoInvoiceDTO
     {
-        $payCurrency = $this->mapCurrency($currency);
+        /** @var CryptoCurrency|null $cryptoCurrency */
+        $cryptoCurrency = CryptoCurrency::where('symbol', strtoupper($currency))
+            ->where('is_active', true)
+            ->first();
+
+        $nowPaymentsCode = $cryptoCurrency?->now_payments_code ?? $this->mapCurrency($currency);
+        $network         = $cryptoCurrency?->network ?? $this->getNetwork($currency);
 
         $response = Http::withHeaders([
-            'x-api-key' => $this->apiKey,
+            'x-api-key'    => $this->apiKey,
             'Content-Type' => 'application/json',
         ])->post("{$this->baseUrl}/payment", [
-            'price_amount' => $amount,
-            'price_currency' => 'usd',
-            'pay_currency' => $payCurrency,
-            'order_id' => $userId . '-' . time(),
+            'price_amount'      => $amount,
+            'price_currency'    => 'usd',
+            'pay_currency'      => $nowPaymentsCode,
+            'order_id'          => "{$userId}-" . time(),
             'order_description' => 'Deposit to NEXU Vault',
-            'case' => config('services.crypto.nowpayments.sandbox', true) ? 'success' : null,
+            'case'              => config('services.crypto.nowpayments.sandbox', true) ? 'success' : null,
         ]);
 
         if ($response->failed()) {
             Log::error('NowPayments API Error', [
                 'status' => $response->status(),
-                'body' => $response->json(),
+                'body'   => $response->json(),
             ]);
             throw new RuntimeException('Failed to generate deposit address with NowPayments.');
         }
@@ -55,9 +62,9 @@ final class NowPaymentsCryptoProvider implements CryptoProviderInterface
         return new CryptoInvoiceDTO(
             invoiceId: (string) $data['payment_id'],
             address:   $data['pay_address'],
-            currency:  $currency,
-            network:   $this->getNetwork($currency),
-            qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' . urlencode($currency . ':' . $data['pay_address']),
+            currency:  strtoupper($currency),
+            network:   $network,
+            qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' . urlencode("{$currency}:{$data['pay_address']}"),
             expiresAt: Carbon::now()->addHours(24),
             payAmount: isset($data['pay_amount']) ? (string) $data['pay_amount'] : null,
         );

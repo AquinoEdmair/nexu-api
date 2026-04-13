@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BalanceController;
+use App\Http\Controllers\Api\CryptoCurrencyController;
 use App\Http\Controllers\Api\DepositController;
 use App\Http\Controllers\Api\EliteTierController;
 use App\Http\Controllers\Api\EmailVerificationController;
@@ -40,6 +41,9 @@ Route::prefix('auth')->middleware('throttle:10,1')->group(function (): void {
 Route::get('/auth/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
     ->middleware(['signed', 'throttle:6,1'])
     ->name('verification.verify');
+
+// ── Crypto currencies (public) ───────────────────────────────────────────
+Route::get('/crypto/currencies', [CryptoCurrencyController::class, 'index']);
 
 // ── Elite tiers (public) ─────────────────────────────────────────────────
 Route::get('/elite/tiers', [EliteTierController::class, 'index']);

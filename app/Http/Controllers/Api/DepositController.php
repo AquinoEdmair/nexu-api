@@ -71,12 +71,14 @@ final class DepositController extends Controller
 
         return response()->json([
             'data' => [
-                'invoice_id'  => $invoice->invoice_id,
-                'address'     => $invoice->address,
-                'currency'    => $invoice->currency,
-                'network'     => $invoice->network,
-                'qr_code_url' => $invoice->qr_code_url,
-                'expires_at'  => $invoice->expires_at->toIso8601String(),
+                'invoice_id'      => $invoice->invoice_id,
+                'address'         => $invoice->address,
+                'currency'        => $invoice->currency,
+                'network'         => $invoice->network,
+                'qr_code_url'     => $invoice->qr_code_url,
+                'amount_expected' => (string) $invoice->amount_expected,
+                'pay_amount'      => $invoice->pay_amount !== null ? (string) $invoice->pay_amount : null,
+                'expires_at'      => $invoice->expires_at->toIso8601String(),
             ],
         ], 201);
     }
@@ -120,14 +122,16 @@ final class DepositController extends Controller
 
         return response()->json([
             'data' => $invoices->map(fn ($invoice) => [
-                'invoice_id'  => $invoice->invoice_id,
-                'address'     => $invoice->address,
-                'currency'    => $invoice->currency,
-                'network'     => $invoice->network,
-                'qr_code_url' => $invoice->qr_code_url,
-                'status'      => $invoice->status,
-                'expires_at'  => $invoice->expires_at->toIso8601String(),
-                'created_at'  => $invoice->created_at->toIso8601String(),
+                'invoice_id'      => $invoice->invoice_id,
+                'address'         => $invoice->address,
+                'currency'        => $invoice->currency,
+                'network'         => $invoice->network,
+                'qr_code_url'     => $invoice->qr_code_url,
+                'status'          => $invoice->status,
+                'amount_expected' => (string) $invoice->amount_expected,
+                'pay_amount'      => $invoice->pay_amount !== null ? (string) $invoice->pay_amount : null,
+                'expires_at'      => $invoice->expires_at->toIso8601String(),
+                'created_at'      => $invoice->created_at->toIso8601String(),
             ]),
         ]);
     }
@@ -151,7 +155,8 @@ final class DepositController extends Controller
                 'qr_code_url'     => $invoice->qr_code_url,
                 'status'          => $invoice->status,
                 'amount_expected' => (string) $invoice->amount_expected,
-                'amount_received' => (string) $invoice->amount_received,
+                'pay_amount'      => $invoice->pay_amount !== null ? (string) $invoice->pay_amount : null,
+                'amount_received' => $invoice->amount_received !== null ? (string) $invoice->amount_received : null,
                 'expires_at'      => $invoice->expires_at->toIso8601String(),
                 'created_at'      => $invoice->created_at->toIso8601String(),
             ]),

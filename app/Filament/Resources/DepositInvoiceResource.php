@@ -195,7 +195,7 @@ final class DepositInvoiceResource extends Resource
     {
         return [
             'index' => ListDepositInvoices::route('/'),
-            'view'  => \Filament\Resources\Pages\ViewRecord::class,
+            'view'  => ViewDepositInvoice::route('/{record}'),
         ];
     }
 
