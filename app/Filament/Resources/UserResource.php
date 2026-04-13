@@ -174,9 +174,12 @@ class UserResource extends Resource
                         ->badge()
                         ->default('Sin asignar'),
 
-                    TextEntry::make('elite_points')
+                    TextEntry::make('elite_points_total')
                         ->label('Puntos acumulados')
-                        ->numeric(decimalPlaces: 2)
+                        ->state(fn(User $record): string => number_format(
+                            (float) $record->elitePoints()->sum('points'),
+                            2, '.', ''
+                        ))
                         ->default('0'),
 
                     IconEntry::make('elite_tier_manual_override')
@@ -248,7 +251,7 @@ class UserResource extends Resource
                     ->default('—')
                     ->sortable(),
 
-                TextColumn::make('elite_points')
+                TextColumn::make('elite_points_sum_points')
                     ->label('Puntos')
                     ->numeric(decimalPlaces: 0)
                     ->sortable()
@@ -504,6 +507,12 @@ class UserResource extends Resource
                     }),
             ])
             ->bulkActions([]);
+    }
+
+    /** @return \Illuminate\Database\Eloquent\Builder<User> */
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return parent::getEloquentQuery()->withSum('elitePoints', 'points');
     }
 
     /** @return array<class-string> */
