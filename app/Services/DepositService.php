@@ -80,7 +80,7 @@ final class DepositService
      * Idempotent: skips if already processed.
      * All balance operations run inside DB::transaction with lockForUpdate.
      *
-     * @param array{invoice_id: string, amount: string, currency: string, tx_hash: string} $payload
+     * @param array{invoice_id: string, amount: string, currency: string, tx_hash: string, actually_paid?: string, pay_currency?: string} $payload
      *
      * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
      */
@@ -150,6 +150,8 @@ final class DepositService
                     'metadata'       => [
                         'invoice_id'      => $invoice->invoice_id,
                         'commission_rate' => $commissionRate,
+                        'actually_paid'   => $payload['actually_paid'] ?? null,
+                        'pay_currency'    => $payload['pay_currency'] ?? null,
                     ],
                 ]);
             } else {
@@ -165,6 +167,8 @@ final class DepositService
                     'metadata'       => [
                         'invoice_id'      => $invoice->invoice_id,
                         'commission_rate' => $commissionRate,
+                        'actually_paid'   => $payload['actually_paid'] ?? null,
+                        'pay_currency'    => $payload['pay_currency'] ?? null,
                     ],
                 ]);
             }
