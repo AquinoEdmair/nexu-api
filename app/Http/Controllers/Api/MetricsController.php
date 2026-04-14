@@ -77,11 +77,16 @@ final class MetricsController extends Controller
     }
 
     /**
-     * Obtiene el comportamiento histórico del precio del oro (Datos Reales).
+     * Obtiene el comportamiento histórico del precio del oro.
+     * Query param: range = 1h | 1d | 1w | 1m  (default: 1w)
      */
-    public function gold(): JsonResponse
+    public function gold(\Illuminate\Http\Request $request): JsonResponse
     {
-        $priceData = $this->goldService->getPriceData();
+        $range     = in_array($request->query('range'), ['1h', '1d', '1w', '1m'], true)
+            ? $request->query('range')
+            : '1w';
+
+        $priceData = $this->goldService->getPriceData($range);
 
         return response()->json($priceData);
     }
