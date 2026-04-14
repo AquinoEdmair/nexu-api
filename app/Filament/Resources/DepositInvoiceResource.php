@@ -7,17 +7,22 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\DepositInvoiceResource\Pages\ListDepositInvoices;
 use App\Filament\Resources\DepositInvoiceResource\Pages\ViewDepositInvoice;
 use App\Models\DepositInvoice;
+use App\Services\DepositService;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Form;
 use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Infolist;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 
 final class DepositInvoiceResource extends Resource
 {
@@ -178,14 +183,71 @@ final class DepositInvoiceResource extends Resource
 
                 SelectFilter::make('currency')
                     ->label('Moneda')
-                    ->options([
-                        'BTC'  => 'Bitcoin (BTC)',
-                        'ETH'  => 'Ethereum (ETH)',
-                        'USDT' => 'USDT (TRC20)',
-                    ]),
+                    ->relationship('user', 'currency')
+                    ->options(fn() => DepositInvoice::distinct()->pluck('currency', 'currency')->toArray()),
             ])
             ->actions([
                 ViewAction::make(),
+
+                Action::make('confirm')
+                    ->label('Confirmar')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->visible(fn(DepositInvoice $r): bool => $r->status === 'awaiting_payment')
+                    ->requiresConfirmation()
+                    ->modalHeading('Confirmar depósito manualmente')
+                    ->modalDescription(fn(DepositInvoice $r): string =>
+                        "Se acreditará \${$r->amount_expected} USD al balance de {$r->user?->name}. Esta acción queda registrada en el log de auditoría."
+                    )
+                    ->action(function (DepositInvoice $record): void {
+                        try {
+                            app(DepositService::class)->confirmManually($record, Auth::id());
+                            Notification::make()
+                                ->title('Depósito confirmado')
+                                ->body("Se acreditó \${$record->amount_expected} USD al usuario {$record->user?->name}.")
+                                ->success()
+                                ->send();
+                        } catch (\Throwable $e) {
+                            Notification::make()
+                                ->title('Error al confirmar')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+
+                Action::make('cancel')
+                    ->label('Cancelar')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->visible(fn(DepositInvoice $r): bool => $r->status === 'awaiting_payment')
+                    ->requiresConfirmation()
+                    ->modalHeading('Cancelar depósito')
+                    ->modalDescription('El depósito se marcará como fallido. No se acreditará nada al usuario.')
+                    ->form([
+                        Textarea::make('reason')
+                            ->label('Motivo de cancelación')
+                            ->required()
+                            ->minLength(5)
+                            ->maxLength(500)
+                            ->placeholder('Ej. Pago no recibido después de 48h, solicitado por el usuario, etc.'),
+                    ])
+                    ->action(function (DepositInvoice $record, array $data): void {
+                        try {
+                            app(DepositService::class)->cancelInvoice($record, Auth::id(), $data['reason']);
+                            Notification::make()
+                                ->title('Depósito cancelado')
+                                ->body("Invoice {$record->invoice_id} marcado como fallido.")
+                                ->success()
+                                ->send();
+                        } catch (\Throwable $e) {
+                            Notification::make()
+                                ->title('Error al cancelar')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
             ])
             ->bulkActions([]);
     }

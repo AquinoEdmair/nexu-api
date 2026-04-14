@@ -254,4 +254,68 @@ final class DepositService
             ->get();
     }
 
+    /**
+     * Manually confirms a pending deposit invoice as if the webhook had arrived.
+     * Uses amount_expected as the credited amount.
+     * Records admin ID in transaction metadata for audit trail.
+     *
+     * @throws \RuntimeException if invoice is not awaiting_payment
+     */
+    public function confirmManually(DepositInvoice $invoice, int|string $adminId): void
+    {
+        if ($invoice->status !== 'awaiting_payment') {
+            throw new \RuntimeException("Invoice {$invoice->invoice_id} no está pendiente de pago (status: {$invoice->status}).");
+        }
+
+        $this->processWebhook([
+            'invoice_id'    => $invoice->invoice_id,
+            'status'        => 'finished',
+            'amount'        => (string) $invoice->amount_expected,
+            'currency'      => 'USD',
+            'tx_hash'       => 'manual-' . $adminId . '-' . time(),
+            'actually_paid' => (string) ($invoice->pay_amount ?? $invoice->amount_expected),
+            'pay_currency'  => $invoice->currency,
+            'confirmed_by'  => (string) $adminId,
+        ]);
+
+        activity()
+            ->causedBy(\App\Models\Admin::find($adminId))
+            ->performedOn($invoice)
+            ->withProperties(['admin_id' => $adminId, 'amount' => $invoice->amount_expected])
+            ->log('Depósito confirmado manualmente');
+    }
+
+    /**
+     * Cancels a pending deposit invoice without crediting the user.
+     * Records admin ID in activity log.
+     *
+     * @throws \RuntimeException if invoice is not awaiting_payment
+     */
+    public function cancelInvoice(DepositInvoice $invoice, int|string $adminId, string $reason): void
+    {
+        if ($invoice->status !== 'awaiting_payment') {
+            throw new \RuntimeException("Invoice {$invoice->invoice_id} no está pendiente de pago (status: {$invoice->status}).");
+        }
+
+        DB::transaction(function () use ($invoice, $adminId, $reason): void {
+            // Cancel the pending transaction if it exists
+            if ($invoice->transaction_id !== null) {
+                Transaction::where('id', $invoice->transaction_id)
+                    ->where('status', 'pending')
+                    ->update(['status' => 'rejected', 'metadata->cancel_reason' => $reason]);
+            }
+
+            $invoice->update([
+                'status'       => 'failed',
+                'completed_at' => now(),
+            ]);
+        });
+
+        activity()
+            ->causedBy(\App\Models\Admin::find($adminId))
+            ->performedOn($invoice)
+            ->withProperties(['admin_id' => $adminId, 'reason' => $reason])
+            ->log('Depósito cancelado manualmente');
+    }
+
 }
