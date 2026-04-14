@@ -18,14 +18,42 @@ final class ElitePointsRelationManager extends RelationManager
     {
         return $table
             ->columns([
-                TextColumn::make('points')
-                    ->label('Puntos')
-                    ->numeric(decimalPlaces: 2)
+                TextColumn::make('created_at')
+                    ->label('Fecha')
+                    ->dateTime('d/m/Y H:i')
                     ->sortable(),
 
+                TextColumn::make('points')
+                    ->label('Puntos')
+                    ->formatStateUsing(fn(string $state): string =>
+                        (float)$state >= 0
+                            ? '+' . number_format((float)$state, 2)
+                            : number_format((float)$state, 2)
+                    )
+                    ->color(fn(string $state): string => (float)$state >= 0 ? 'success' : 'danger')
+                    ->sortable(),
+
+                TextColumn::make('source')
+                    ->label('Origen')
+                    ->state(fn($record): string =>
+                        str_starts_with((string)$record->description, 'admin:') ? 'Ajuste admin' : 'Sistema'
+                    )
+                    ->badge()
+                    ->color(fn(string $state): string => $state === 'Ajuste admin' ? 'warning' : 'info'),
+
                 TextColumn::make('description')
-                    ->label('Descripción')
-                    ->wrap(),
+                    ->label('Detalle')
+                    ->formatStateUsing(function (string $state): string {
+                        if (str_starts_with($state, 'admin:')) {
+                            $parts = explode(':', $state, 3);
+                            $adminId = $parts[1] ?? '?';
+                            $reason  = $parts[2] ?? '—';
+                            return "Admin #{$adminId} — {$reason}";
+                        }
+                        return $state;
+                    })
+                    ->wrap()
+                    ->limit(100),
 
                 TextColumn::make('transaction.type')
                     ->label('Transacción origen')
@@ -34,11 +62,6 @@ final class ElitePointsRelationManager extends RelationManager
                         ? TransactionResource::typeLabel($state)
                         : '—'
                     ),
-
-                TextColumn::make('created_at')
-                    ->label('Fecha')
-                    ->dateTime('d/m/Y H:i')
-                    ->sortable(),
             ])
             ->defaultSort('created_at', 'desc')
             ->paginated([10, 25])

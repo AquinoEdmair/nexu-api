@@ -368,9 +368,9 @@ class UserResource extends Resource
                             ->label('Monto (USD)')
                             ->required()
                             ->numeric()
-                            ->minValue(0.00000001)
-                            ->step(0.01)
-                            ->placeholder('0.00'),
+                            ->minValue(0.01)
+                            ->extraInputAttributes(['step' => 'any'])
+                            ->placeholder('100'),
 
                         Textarea::make('reason')
                             ->label('Motivo')
@@ -426,8 +426,8 @@ class UserResource extends Resource
                             ->required()
                             ->numeric()
                             ->minValue(0.01)
-                            ->step(0.01)
-                            ->placeholder('0.00'),
+                            ->extraInputAttributes(['step' => 'any'])
+                            ->placeholder('100'),
 
                         Textarea::make('reason')
                             ->label('Motivo')
@@ -520,6 +520,7 @@ class UserResource extends Resource
     {
         return [
             RelationManagers\TransactionsRelationManager::class,
+            RelationManagers\AdminAdjustmentsRelationManager::class,
             RelationManagers\ReferralsRelationManager::class,
             RelationManagers\ElitePointsRelationManager::class,
         ];
