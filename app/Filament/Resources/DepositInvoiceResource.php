@@ -183,8 +183,7 @@ final class DepositInvoiceResource extends Resource
 
                 SelectFilter::make('currency')
                     ->label('Moneda')
-                    ->relationship('user', 'currency')
-                    ->options(fn() => DepositInvoice::distinct()->pluck('currency', 'currency')->toArray()),
+                    ->options(fn() => DepositInvoice::distinct()->pluck('currency', 'currency')->sort()->toArray()),
             ])
             ->actions([
                 ViewAction::make(),
