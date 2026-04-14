@@ -71,7 +71,16 @@ final class ApplyYieldToUsers implements ShouldBeUnique, ShouldQueue
 
             $yieldService->markCompleted($yieldLog);
 
-            YieldApplied::dispatch($yieldLog->fresh());
+            // Dispatch notifications separately — failures here must NOT roll back
+            // the yield nor mark it as failed. Log and continue.
+            try {
+                YieldApplied::dispatch($yieldLog->fresh());
+            } catch (Throwable $notifError) {
+                \Illuminate\Support\Facades\Log::warning('YieldApplied notifications failed (yield already applied)', [
+                    'yield_log_id' => $this->yieldLogId,
+                    'error'        => $notifError->getMessage(),
+                ]);
+            }
         } catch (Throwable $e) {
             // Mark the log as failed immediately so the admin can see the error
             // before the Job's retry backoff kicks in.
