@@ -55,12 +55,12 @@ final class AdminAdjustmentResource extends Resource
                     ->color(fn(string $state): string => (float)$state >= 0 ? 'success' : 'danger')
                     ->sortable(),
 
-                TextColumn::make('metadata->field_adjusted')
+                TextColumn::make('field_adjusted')
                     ->label('Campo')
-                    ->formatStateUsing(fn(?string $state): string => match($state) {
+                    ->state(fn(Transaction $r): string => match(data_get($r->metadata, 'field_adjusted')) {
                         'balance_available'    => 'Disponible',
                         'balance_in_operation' => 'En operación',
-                        default                => $state ?? '—',
+                        default                => data_get($r->metadata, 'field_adjusted') ?? '—',
                     })
                     ->badge()
                     ->color('info'),
@@ -71,19 +71,24 @@ final class AdminAdjustmentResource extends Resource
                     ->limit(80)
                     ->searchable(),
 
-                TextColumn::make('metadata->admin_id')
+                TextColumn::make('admin_id')
                     ->label('Admin ID')
+                    ->state(fn(Transaction $r): string => data_get($r->metadata, 'admin_id') ?? '—')
                     ->fontFamily('mono')
                     ->color('gray'),
 
-                TextColumn::make('metadata->previous_value')
+                TextColumn::make('previous_value')
                     ->label('Antes')
-                    ->formatStateUsing(fn(?string $state): string => $state ? '$' . number_format((float)$state, 2) : '—')
+                    ->state(fn(Transaction $r): string =>
+                        ($v = data_get($r->metadata, 'previous_value')) ? '$' . number_format((float)$v, 2) : '—'
+                    )
                     ->color('gray'),
 
-                TextColumn::make('metadata->new_value')
+                TextColumn::make('new_value')
                     ->label('Después')
-                    ->formatStateUsing(fn(?string $state): string => $state ? '$' . number_format((float)$state, 2) : '—'),
+                    ->state(fn(Transaction $r): string =>
+                        ($v = data_get($r->metadata, 'new_value')) ? '$' . number_format((float)$v, 2) : '—'
+                    ),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
