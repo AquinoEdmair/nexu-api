@@ -166,7 +166,7 @@ final class ViewTransaction extends ViewRecord
                                     ? data_get($record->metadata, 'admin_id')
                                     : data_get($record->metadata, 'confirmed_by');
                                 if (! $adminId && str_starts_with((string) $record->external_tx_id, 'manual-')) {
-                                    $adminId = explode('-', $record->external_tx_id)[1] ?? null;
+                                    $adminId = preg_match('/^manual-(.+)-(\d+)$/', $record->external_tx_id, $m) ? $m[1] : null;
                                 }
                                 if (! $adminId) return '—';
                                 return Admin::find($adminId)?->name ?? "ID {$adminId}";
@@ -179,7 +179,7 @@ final class ViewTransaction extends ViewRecord
                                     ? data_get($record->metadata, 'admin_id')
                                     : data_get($record->metadata, 'confirmed_by');
                                 if (! $adminId && str_starts_with((string) $record->external_tx_id, 'manual-')) {
-                                    $adminId = explode('-', $record->external_tx_id)[1] ?? null;
+                                    $adminId = preg_match('/^manual-(.+)-(\d+)$/', $record->external_tx_id, $m) ? $m[1] : null;
                                 }
                                 if (! $adminId) return '—';
                                 return Admin::find($adminId)?->email ?? '—';

@@ -157,7 +157,7 @@ final class DepositController extends Controller
                 $confirmedBy = data_get($invoice->transaction?->metadata, 'confirmed_by');
                 // Fallback: extract admin ID from external_tx_id (format: "manual-{adminId}-{timestamp}")
                 if (! $confirmedBy && str_starts_with((string) $invoice->transaction?->external_tx_id, 'manual-')) {
-                    $confirmedBy = explode('-', $invoice->transaction->external_tx_id)[1] ?? null;
+                    $confirmedBy = preg_match('/^manual-(.+)-(\d+)$/', $invoice->transaction->external_tx_id, $m) ? $m[1] : null;
                 }
                 $adminName = $confirmedBy ? \App\Models\Admin::find($confirmedBy)?->name : null;
 
