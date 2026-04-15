@@ -145,19 +145,15 @@ final class DepositController extends Controller
 
         $invoices = $this->depositService->getInvoiceHistory($user);
 
-        // Eager-load the associated transaction so we can detect manual confirmations
-        $invoices->load('transaction');
-
         return response()->json([
             'data' => $invoices->map(function ($invoice) {
-                // A deposit is "manually confirmed" when an admin called confirmManually().
-                // That method stores the admin ID in transaction.metadata.confirmed_by.
-                // The amount credited is ALWAYS amount_expected (USD fixed at invoice creation),
-                // regardless of the current crypto price — so there is no conversion drift.
-                $confirmedBy = data_get($invoice->transaction?->metadata, 'confirmed_by');
-                // Fallback: extract admin ID from external_tx_id (format: "manual-{adminId}-{timestamp}")
-                if (! $confirmedBy && str_starts_with((string) $invoice->transaction?->external_tx_id, 'manual-')) {
-                    $confirmedBy = preg_match('/^manual-(.+)-(\d+)$/', $invoice->transaction->external_tx_id, $m) ? $m[1] : null;
+                // Manual confirmation detection:
+                // 1. invoice.tx_hash is set to "manual-{adminId}-{timestamp}" by confirmManually()
+                // 2. This is the most reliable source — no join needed.
+                $confirmedBy = null;
+                if (str_starts_with((string) $invoice->tx_hash, 'manual-')) {
+                    preg_match('/^manual-(.+)-(\d+)$/', $invoice->tx_hash, $m);
+                    $confirmedBy = $m[1] ?? null;
                 }
                 $adminName = $confirmedBy ? \App\Models\Admin::find($confirmedBy)?->name : null;
 
