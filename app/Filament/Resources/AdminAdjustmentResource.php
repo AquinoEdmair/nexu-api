@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\AdminAdjustmentResource\Pages\ListAdminAdjustments;
+use App\Models\Admin;
 use App\Models\Transaction;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -71,11 +72,15 @@ final class AdminAdjustmentResource extends Resource
                     ->limit(80)
                     ->searchable(),
 
-                TextColumn::make('admin_id')
-                    ->label('Admin ID')
-                    ->state(fn(Transaction $r): string => data_get($r->metadata, 'admin_id') ?? '—')
-                    ->fontFamily('mono')
-                    ->color('gray'),
+                TextColumn::make('admin_name')
+                    ->label('Admin')
+                    ->state(function (Transaction $r): string {
+                        $adminId = data_get($r->metadata, 'admin_id');
+                        if (! $adminId) {
+                            return '—';
+                        }
+                        return Admin::find($adminId)?->name ?? "ID {$adminId}";
+                    }),
 
                 TextColumn::make('previous_value')
                     ->label('Antes')
