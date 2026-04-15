@@ -14,9 +14,9 @@ use Illuminate\Support\Facades\DB;
 final class AdminAdjustmentService
 {
     /**
-     * Apply a signed delta to one wallet field for a user.
+     * Apply a signed delta to the user's balance_in_operation.
      *
-     * @param  string $field  'balance_available' | 'balance_in_operation'
+     * @param  string $field  Must be 'balance_in_operation' (balance_available no longer exists).
      * @param  string $delta  Signed decimal string. Positive = credit, negative = debit.
      * @param  string $reason Human-readable reason shown in transaction description.
      * @param  string $adminId  ID of the admin performing the action (stored in metadata).
@@ -31,26 +31,28 @@ final class AdminAdjustmentService
         string $reason,
         string $adminId,
     ): Transaction {
+        // Redirect any legacy 'balance_available' adjustments to balance_in_operation
+        if ($field === 'balance_available') {
+            $field = 'balance_in_operation';
+        }
+
         return DB::transaction(function () use ($user, $field, $delta, $reason, $adminId): Transaction {
             /** @var Wallet $wallet */
             $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->firstOrFail();
 
-            $previous = (string) $wallet->$field;
+            $previous = (string) $wallet->balance_in_operation;
             $newValue = bcadd($previous, $delta, 8);
 
             if (bccomp($newValue, '0', 8) < 0) {
                 throw new \InvalidArgumentException(
-                    "El ajuste dejaría {$field} en negativo ({$newValue})."
+                    "El ajuste dejaría balance_in_operation en negativo ({$newValue})."
                 );
             }
 
-            $wallet->fill([$field => $newValue]);
-            $wallet->balance_total = bcadd(
-                (string) $wallet->balance_available,
-                (string) $wallet->balance_in_operation,
-                8
-            );
-            $wallet->save();
+            $wallet->update([
+                'balance_in_operation' => $newValue,
+                'balance_total'        => $newValue,
+            ]);
 
             return Transaction::create([
                 'user_id'     => $user->id,

@@ -25,7 +25,7 @@ final class WithdrawalService
     ) {}
 
     /**
-     * Create a withdrawal request and immediately reserve funds from balance_available.
+     * Create a withdrawal request and immediately reserve funds from balance_in_operation.
      *
      * Commission logic:
      *   - User requests to withdraw $amount (gross)
@@ -44,10 +44,10 @@ final class WithdrawalService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ((float) $dto->amount > (float) $wallet->balance_available) {
+            if ((float) $dto->amount > (float) $wallet->balance_in_operation) {
                 throw new InsufficientBalanceException(
                     (float) $dto->amount,
-                    (float) $wallet->balance_available
+                    (float) $wallet->balance_in_operation
                 );
             }
 
@@ -58,12 +58,11 @@ final class WithdrawalService
             $netAmount      = bcsub((string) $dto->amount, $feeAmount, 8);
 
             // Reserve the full requested amount (fee is part of it)
-            $newAvailable = bcsub((string) $wallet->balance_available, (string) $dto->amount, 8);
-            $newTotal     = bcsub((string) $wallet->balance_total, (string) $dto->amount, 8);
+            $newInOperation = bcsub((string) $wallet->balance_in_operation, (string) $dto->amount, 8);
 
             $wallet->update([
-                'balance_available' => $newAvailable,
-                'balance_total'     => $newTotal,
+                'balance_in_operation' => $newInOperation,
+                'balance_total'        => $newInOperation,
             ]);
 
             $request = WithdrawalRequest::create([
@@ -275,9 +274,11 @@ final class WithdrawalService
             ->lockForUpdate()
             ->firstOrFail();
 
+        $newInOperation = bcadd((string) $wallet->balance_in_operation, (string) $request->amount, 8);
+
         $wallet->update([
-            'balance_available' => bcadd((string) $wallet->balance_available, (string) $request->amount, 8),
-            'balance_total'     => bcadd((string) $wallet->balance_total, (string) $request->amount, 8),
+            'balance_in_operation' => $newInOperation,
+            'balance_total'        => $newInOperation,
         ]);
     }
 

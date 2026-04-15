@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\UserResource\RelationManagers;
 
+use App\Models\Admin;
 use App\Models\Transaction;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\TextColumn;
@@ -37,7 +38,7 @@ final class AdminAdjustmentsRelationManager extends RelationManager
                 TextColumn::make('field_adjusted')
                     ->label('Campo')
                     ->state(fn(Transaction $r): string => match(data_get($r->metadata, 'field_adjusted')) {
-                        'balance_available'    => 'Disponible',
+                        'balance_available',
                         'balance_in_operation' => 'En operación',
                         default                => data_get($r->metadata, 'field_adjusted') ?? '—',
                     })
@@ -49,11 +50,15 @@ final class AdminAdjustmentsRelationManager extends RelationManager
                     ->wrap()
                     ->limit(80),
 
-                TextColumn::make('admin_id')
-                    ->label('Admin ID')
-                    ->state(fn(Transaction $r): string => data_get($r->metadata, 'admin_id') ?? '—')
-                    ->fontFamily('mono')
-                    ->color('gray'),
+                TextColumn::make('admin_name')
+                    ->label('Admin')
+                    ->state(function (Transaction $r): string {
+                        $adminId = data_get($r->metadata, 'admin_id');
+                        if (! $adminId) {
+                            return '—';
+                        }
+                        return Admin::find($adminId)?->name ?? "ID {$adminId}";
+                    }),
 
                 TextColumn::make('previous_value')
                     ->label('Valor anterior')

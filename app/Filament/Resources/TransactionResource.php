@@ -6,6 +6,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\TransactionResource\Pages\ListTransactions;
 use App\Filament\Resources\TransactionResource\Pages\ViewTransaction;
+use App\Models\Admin;
 use App\Models\Transaction;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -53,19 +54,19 @@ final class TransactionResource extends Resource
 
                 TextColumn::make('amount')
                     ->label('Bruto')
-                    ->formatStateUsing(fn(string $state): string => self::formatSmart($state))
+                    ->numeric(decimalPlaces: 2)
                     ->prefix('$')
                     ->sortable(),
 
                 TextColumn::make('fee_amount')
                     ->label('Comisión')
-                    ->formatStateUsing(fn(string $state): string => self::formatSmart($state))
+                    ->numeric(decimalPlaces: 2)
                     ->prefix('$')
                     ->color('danger'),
 
                 TextColumn::make('net_amount')
                     ->label('Neto')
-                    ->formatStateUsing(fn(string $state): string => self::formatSmart($state))
+                    ->numeric(decimalPlaces: 2)
                     ->prefix('$')
                     ->weight('bold')
                     ->sortable(),
@@ -87,6 +88,28 @@ final class TransactionResource extends Resource
                     ->copyable()
                     ->placeholder('—')
                     ->tooltip(fn(?string $state): ?string => $state),
+
+                TextColumn::make('admin_actor')
+                    ->label('Admin')
+                    ->state(function (Transaction $record): string {
+                        // Admin adjustment: metadata.admin_id
+                        if ($record->type === 'admin_adjustment') {
+                            $adminId = data_get($record->metadata, 'admin_id');
+                            if ($adminId) {
+                                return Admin::find($adminId)?->name ?? "ID {$adminId}";
+                            }
+                        }
+                        // Manually confirmed deposit: metadata.confirmed_by
+                        if ($record->type === 'deposit') {
+                            $adminId = data_get($record->metadata, 'confirmed_by');
+                            if ($adminId) {
+                                return Admin::find($adminId)?->name ?? "ID {$adminId}";
+                            }
+                        }
+                        return '—';
+                    })
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('created_at')
                     ->label('Fecha')

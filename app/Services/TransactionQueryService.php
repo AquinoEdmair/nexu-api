@@ -36,7 +36,7 @@ final class TransactionQueryService
         /** @var Transaction */
         return Transaction::with([
             'user:id,name,email,status,phone',
-            'wallet:id,user_id,balance_available,balance_in_operation,balance_total',
+            'wallet:id,user_id,balance_in_operation,balance_total',
         ])->findOrFail($id);
     }
 

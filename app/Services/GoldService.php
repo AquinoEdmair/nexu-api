@@ -78,26 +78,36 @@ final class GoldService
         }
     }
 
-    /** Build a coherent simulated history around current price for the given range. */
+    /**
+     * Build a realistic random-walk history for the given range.
+     * Variation scales with the period so each range looks visually distinct.
+     */
     private function buildHistory(string $range, float $currentPrice): array
     {
-        [$points, $format, $unit] = match($range) {
-            '1h'    => [60, 'H:i',     'minutes'],
-            '1d'    => [24, 'd/m H:i', 'hours'],
-            '1w'    => [7,  'd/m',     'days'],
-            '1m'    => [30, 'd/m',     'days'],
-            default => [7,  'd/m',     'days'],
+        // [points, date-format, Carbon-unit, max-step-pct-per-point * 10000]
+        [$points, $format, $unit, $maxStep] = match($range) {
+            '1h'    => [60, 'H:i',     'Minutes', 8],    // ±0.08% per minute
+            '1d'    => [24, 'H:i',     'Hours',   25],   // ±0.25% per hour
+            '1w'    => [7,  'd M',     'Days',    80],   // ±0.80% per day
+            '1m'    => [30, 'd M',     'Days',    150],  // ±1.50% per day
+            default => [7,  'd M',     'Days',    80],
         };
 
+        // Build backwards from current price using random walk
+        $prices = [$currentPrice];
+        for ($i = 1; $i < $points; $i++) {
+            $prev     = $prices[$i - 1];
+            $step     = rand(-$maxStep, $maxStep) / 10000;
+            $prices[] = round($prev * (1 + $step), 2);
+        }
+
+        // Reverse so oldest is first, newest (current) is last
+        $prices = array_reverse($prices);
+
         $history = [];
-
         for ($i = $points - 1; $i >= 0; $i--) {
-            $date  = now()->{"sub{$unit}"}($i)->format($format);
-            $price = $i === 0
-                ? $currentPrice
-                : round($currentPrice * (1 + (rand(-80, 80) / 10000)), 2);
-
-            $history[] = ['date' => $date, 'price' => $price];
+            $date      = now()->{"sub{$unit}"}($i)->format($format);
+            $history[] = ['date' => $date, 'price' => $prices[$points - 1 - $i]];
         }
 
         return $history;

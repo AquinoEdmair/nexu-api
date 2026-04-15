@@ -83,10 +83,9 @@ final class UserAuthService
             ]);
 
             Wallet::create([
-                'user_id' => $user->id,
-                'balance_available' => 0,
+                'user_id'              => $user->id,
                 'balance_in_operation' => 0,
-                'balance_total' => 0,
+                'balance_total'        => 0,
             ]);
 
             if ($referrer !== null) {

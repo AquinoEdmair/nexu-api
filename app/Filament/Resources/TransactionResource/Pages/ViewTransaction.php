@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\TransactionResource\Pages;
 
 use App\Filament\Resources\TransactionResource;
+use App\Models\Admin;
 use App\Models\Transaction;
 use Filament\Actions\Action;
 use Filament\Infolists\Components\KeyValueEntry;
@@ -56,18 +57,18 @@ final class ViewTransaction extends ViewRecord
 
                         TextEntry::make('amount')
                             ->label('Monto bruto')
-                            ->numeric(decimalPlaces: 8)
+                            ->numeric(decimalPlaces: 2)
                             ->prefix('$'),
 
                         TextEntry::make('fee_amount')
                             ->label('Comisión')
-                            ->numeric(decimalPlaces: 8)
+                            ->numeric(decimalPlaces: 2)
                             ->prefix('$')
                             ->color('danger'),
 
                         TextEntry::make('net_amount')
                             ->label('Monto neto')
-                            ->numeric(decimalPlaces: 8)
+                            ->numeric(decimalPlaces: 2)
                             ->prefix('$')
                             ->weight('bold'),
 
@@ -144,25 +145,55 @@ final class ViewTransaction extends ViewRecord
                             }),
                     ]),
 
+                Section::make('Admin responsable')
+                    ->columns(2)
+                    ->collapsed()
+                    ->visible(fn(Transaction $record): bool =>
+                        $record->type === 'admin_adjustment' ||
+                        ($record->type === 'deposit' && data_get($record->metadata, 'confirmed_by') !== null)
+                    )
+                    ->schema([
+                        TextEntry::make('admin_name')
+                            ->label('Nombre del admin')
+                            ->state(function (Transaction $record): string {
+                                $adminId = $record->type === 'admin_adjustment'
+                                    ? data_get($record->metadata, 'admin_id')
+                                    : data_get($record->metadata, 'confirmed_by');
+                                if (! $adminId) {
+                                    return '—';
+                                }
+                                $admin = Admin::find($adminId);
+                                return $admin?->name ?? "ID {$adminId}";
+                            }),
+
+                        TextEntry::make('admin_email')
+                            ->label('Email del admin')
+                            ->state(function (Transaction $record): string {
+                                $adminId = $record->type === 'admin_adjustment'
+                                    ? data_get($record->metadata, 'admin_id')
+                                    : data_get($record->metadata, 'confirmed_by');
+                                if (! $adminId) {
+                                    return '—';
+                                }
+                                $admin = Admin::find($adminId);
+                                return $admin?->email ?? '—';
+                            })
+                            ->copyable(),
+                    ]),
+
                 Section::make('Wallet al momento de la operación')
-                    ->columns(3)
+                    ->columns(2)
                     ->collapsed()
                     ->schema([
-                        TextEntry::make('wallet.balance_available')
-                            ->label('Disponible')
-                            ->numeric(decimalPlaces: 8)
-                            ->prefix('$')
-                            ->placeholder('—'),
-
                         TextEntry::make('wallet.balance_in_operation')
                             ->label('En operación')
-                            ->numeric(decimalPlaces: 8)
+                            ->numeric(decimalPlaces: 2)
                             ->prefix('$')
                             ->placeholder('—'),
 
                         TextEntry::make('wallet.balance_total')
                             ->label('Total')
-                            ->numeric(decimalPlaces: 8)
+                            ->numeric(decimalPlaces: 2)
                             ->prefix('$')
                             ->weight('bold')
                             ->placeholder('—'),
@@ -183,7 +214,7 @@ final class ViewTransaction extends ViewRecord
         /** @var Transaction */
         return Transaction::with([
             'user:id,name,email,status,phone',
-            'wallet:id,user_id,balance_available,balance_in_operation,balance_total',
+            'wallet:id,user_id,balance_in_operation,balance_total',
         ])->findOrFail($key);
     }
 }

@@ -160,26 +160,24 @@ final class YieldService
             }
 
             if ($status === 'applied' && $amount !== 0.0) {
-                $newAvailable = (float) $wallet->balance_available;
-                $newTotal = round($newAvailable + $balanceAfter, 8);
+                $newTotal = round($balanceAfter, 8);
 
                 // Invariant guard: verify DB-recorded balance_total equals
-                // balance_available + balance_in_operation BEFORE the update.
+                // balance_in_operation BEFORE the update.
                 // A mismatch means data corruption in a prior operation.
                 $recordedTotal = round((float) $wallet->balance_total, 8);
-                $computedBefore = round($newAvailable + $balanceBefore, 8);
-                if (abs($recordedTotal - $computedBefore) > 0.000000009) {
+                if (abs($recordedTotal - round($balanceBefore, 8)) > 0.000000009) {
                     throw new BalanceInvariantViolationException(
                         $userId,
-                        (string) $newAvailable,
+                        '0',
                         (string) $balanceBefore,
                         (string) $wallet->balance_total,
                     );
                 }
 
                 $wallet->update([
-                    'balance_in_operation' => round($balanceAfter, 8),
-                    'balance_total' => $newTotal,
+                    'balance_in_operation' => $newTotal,
+                    'balance_total'        => $newTotal,
                 ]);
 
                 Transaction::create([

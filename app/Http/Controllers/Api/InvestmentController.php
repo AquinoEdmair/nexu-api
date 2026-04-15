@@ -20,38 +20,16 @@ final class InvestmentController extends Controller
     ) {}
 
     /**
-     * Move funds from balance_available to balance_in_operation.
+     * Deprecated: all funds are permanently in operation.
+     * No available→in_operation transfer is needed.
      *
      * POST /api/v1/investments
      */
     public function store(InvestRequest $request): JsonResponse
     {
-        /** @var User $user */
-        $user   = $request->user();
-        $amount = (float) $request->validated('amount');
-
-        try {
-            $tx = $this->investmentService->invest($user, $amount);
-        } catch (InsufficientBalanceException $e) {
-            return response()->json([
-                'message' => $e->getMessage(),
-            ], 422);
-        }
-
-        // Reload wallet for updated balances in response
-        $user->load('wallet');
-
         return response()->json([
-            'data' => [
-                'transaction' => $this->formatTransaction($tx),
-                'wallet'      => [
-                    'balance_available'    => $user->wallet->balance_available,
-                    'balance_in_operation' => $user->wallet->balance_in_operation,
-                    'balance_total'        => $user->wallet->balance_total,
-                ],
-            ],
-            'message' => __('Inversión realizada con éxito.'),
-        ], 201);
+            'message' => 'Este endpoint ha sido eliminado. Todo el saldo ya está en operación automáticamente.',
+        ], 410);
     }
 
     /**

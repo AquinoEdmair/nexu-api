@@ -176,11 +176,10 @@ final class DepositService
 
             // Credit user wallet with NET amount only (100% of their intended investment)
             $newInOperation = bcadd((string)$wallet->balance_in_operation, (string)$netAmount, 8);
-            $newTotal       = bcadd((string)$wallet->balance_available, (string)$newInOperation, 8);
 
             $wallet->update([
                 'balance_in_operation' => $newInOperation,
-                'balance_total'        => $newTotal,
+                'balance_total'        => $newInOperation,
             ]);
 
             // Mark invoice as completed

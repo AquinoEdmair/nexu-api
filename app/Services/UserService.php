@@ -60,7 +60,6 @@ final class UserService
 
             Wallet::create([
                 'user_id'              => $user->id,
-                'balance_available'    => 0,
                 'balance_in_operation' => 0,
                 'balance_total'        => 0,
             ]);

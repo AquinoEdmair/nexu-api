@@ -12,7 +12,7 @@ final class BalanceInvariantViolationException extends RuntimeException
     {
         parent::__construct(
             "Balance invariant violated for user {$userId}: " .
-            "balance_total ({$total}) != balance_available ({$available}) + balance_in_operation ({$inOperation})"
+            "balance_total ({$total}) != balance_in_operation ({$inOperation})"
         );
     }
 }

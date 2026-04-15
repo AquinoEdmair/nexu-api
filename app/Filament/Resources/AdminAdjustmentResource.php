@@ -58,7 +58,7 @@ final class AdminAdjustmentResource extends Resource
                 TextColumn::make('field_adjusted')
                     ->label('Campo')
                     ->state(fn(Transaction $r): string => match(data_get($r->metadata, 'field_adjusted')) {
-                        'balance_available'    => 'Disponible',
+                        'balance_available',
                         'balance_in_operation' => 'En operación',
                         default                => data_get($r->metadata, 'field_adjusted') ?? '—',
                     })
@@ -95,7 +95,6 @@ final class AdminAdjustmentResource extends Resource
                 SelectFilter::make('field_adjusted')
                     ->label('Campo')
                     ->options([
-                        'balance_available'    => 'Balance disponible',
                         'balance_in_operation' => 'En operación',
                     ])
                     ->query(fn(Builder $query, array $data): Builder =>

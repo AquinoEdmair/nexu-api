@@ -145,21 +145,38 @@ final class DepositController extends Controller
 
         $invoices = $this->depositService->getInvoiceHistory($user);
 
+        // Eager-load the associated transaction so we can detect manual confirmations
+        $invoices->load('transaction');
+
         return response()->json([
-            'data' => $invoices->map(fn ($invoice) => [
-                'id'              => $invoice->id,
-                'invoice_id'      => $invoice->invoice_id,
-                'address'         => $invoice->address,
-                'currency'        => $invoice->currency,
-                'network'         => $invoice->network,
-                'qr_code_url'     => $invoice->qr_code_url,
-                'status'          => $invoice->status,
-                'amount_expected' => (string) $invoice->amount_expected,
-                'pay_amount'      => $invoice->pay_amount !== null ? (string) $invoice->pay_amount : null,
-                'amount_received' => $invoice->amount_received !== null ? (string) $invoice->amount_received : null,
-                'expires_at'      => $invoice->expires_at->toIso8601String(),
-                'created_at'      => $invoice->created_at->toIso8601String(),
-            ]),
+            'data' => $invoices->map(function ($invoice) {
+                // A deposit is "manually confirmed" when an admin called confirmManually().
+                // That method stores the admin ID in transaction.metadata.confirmed_by.
+                // The amount credited is ALWAYS amount_expected (USD fixed at invoice creation),
+                // regardless of the current crypto price — so there is no conversion drift.
+                $confirmedBy   = data_get($invoice->transaction?->metadata, 'confirmed_by');
+                $adminName     = null;
+                if ($confirmedBy !== null) {
+                    $adminName = \App\Models\Admin::find($confirmedBy)?->name;
+                }
+
+                return [
+                    'id'                  => $invoice->id,
+                    'invoice_id'          => $invoice->invoice_id,
+                    'address'             => $invoice->address,
+                    'currency'            => $invoice->currency,
+                    'network'             => $invoice->network,
+                    'qr_code_url'         => $invoice->qr_code_url,
+                    'status'              => $invoice->status,
+                    'amount_expected'     => (string) $invoice->amount_expected,
+                    'pay_amount'          => $invoice->pay_amount !== null ? (string) $invoice->pay_amount : null,
+                    'amount_received'     => $invoice->amount_received !== null ? (string) $invoice->amount_received : null,
+                    'expires_at'          => $invoice->expires_at->toIso8601String(),
+                    'created_at'          => $invoice->created_at->toIso8601String(),
+                    'confirmed_manually'  => $confirmedBy !== null,
+                    'confirmed_by_name'   => $adminName,
+                ];
+            }),
         ]);
     }
 }

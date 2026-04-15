@@ -137,23 +137,18 @@ class UserResource extends Resource
 
             InfolistSection::make('Wallet')
                 ->schema([
-                    TextEntry::make('wallet.balance_available')
-                        ->label('Balance disponible')
-                        ->numeric(decimalPlaces: 8)
-                        ->prefix('$'),
-
                     TextEntry::make('wallet.balance_in_operation')
                         ->label('En operación')
-                        ->numeric(decimalPlaces: 8)
+                        ->numeric(decimalPlaces: 2)
                         ->prefix('$'),
 
                     TextEntry::make('wallet.balance_total')
                         ->label('Balance total')
-                        ->numeric(decimalPlaces: 8)
+                        ->numeric(decimalPlaces: 2)
                         ->prefix('$')
                         ->weight(\Filament\Support\Enums\FontWeight::Bold),
                 ])
-                ->columns(3),
+                ->columns(2),
 
             InfolistSection::make('Referido por')
                 ->schema([
@@ -170,7 +165,7 @@ class UserResource extends Resource
             InfolistSection::make('Nivel Élite')
                 ->schema([
                     TextEntry::make('eliteTier.name')
-                        ->label('Tier actual')
+                        ->label('Nivel actual')
                         ->badge()
                         ->default('Sin asignar'),
 
@@ -246,7 +241,7 @@ class UserResource extends Resource
                     ->default('0.00'),
 
                 TextColumn::make('eliteTier.name')
-                    ->label('Tier')
+                    ->label('Nivel')
                     ->badge()
                     ->default('—')
                     ->sortable(),
@@ -281,7 +276,7 @@ class UserResource extends Resource
                 ViewAction::make(),
                 EditAction::make(),
                 Action::make('assignEliteTier')
-                    ->label('Asignar tier')
+                    ->label('Asignar nivel')
                     ->icon('heroicon-o-trophy')
                     ->color('warning')
                     ->form([
@@ -299,7 +294,7 @@ class UserResource extends Resource
 
                         Toggle::make('elite_tier_manual_override')
                             ->label('Override manual (evita recálculo automático)')
-                            ->helperText('Activo = el tier no cambia aunque cambien sus puntos.'),
+                            ->helperText('Activo = el nivel no cambia aunque cambien sus puntos.'),
                     ])
                     ->fillForm(fn(User $record): array => [
                         'elite_tier_id'              => $record->elite_tier_id,
@@ -321,24 +316,24 @@ class UserResource extends Resource
                         }
 
                         Notification::make()
-                            ->title('Tier actualizado')
+                            ->title('Nivel actualizado')
                             ->success()
                             ->send();
                     }),
 
                 Action::make('recalculateEliteTier')
-                    ->label('Recalcular tier')
+                    ->label('Recalcular nivel')
                     ->icon('heroicon-o-arrow-path')
                     ->color('gray')
                     ->requiresConfirmation()
                     ->modalHeading('Recalcular nivel Élite')
-                    ->modalDescription('Se recalculará el tier según los puntos actuales del usuario y se liberará el override manual si estaba activo.')
+                    ->modalDescription('Se recalculará el nivel según los puntos actuales del usuario y se liberará el override manual si estaba activo.')
                     ->action(function (User $record): void {
                         app(EliteTierService::class)->releaseOverride($record);
                         app(EliteTierService::class)->recalculateForUser($record->fresh());
 
                         Notification::make()
-                            ->title('Tier recalculado')
+                            ->title('Nivel recalculado')
                             ->success()
                             ->send();
                     }),
@@ -351,9 +346,9 @@ class UserResource extends Resource
                         Select::make('field')
                             ->label('Campo')
                             ->options([
-                                'balance_available'    => 'Balance disponible',
                                 'balance_in_operation' => 'En operación',
                             ])
+                            ->default('balance_in_operation')
                             ->required(),
 
                         Select::make('direction')
@@ -521,6 +516,7 @@ class UserResource extends Resource
         return [
             RelationManagers\TransactionsRelationManager::class,
             RelationManagers\AdminAdjustmentsRelationManager::class,
+            RelationManagers\AdminPointAdjustmentsRelationManager::class,
             RelationManagers\ReferralsRelationManager::class,
             RelationManagers\ElitePointsRelationManager::class,
         ];

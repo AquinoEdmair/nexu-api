@@ -18,7 +18,6 @@ final class Wallet extends Model
 
     protected $fillable = [
         'user_id',
-        'balance_available',
         'balance_in_operation',
         'balance_total',
     ];
@@ -26,7 +25,6 @@ final class Wallet extends Model
     protected function casts(): array
     {
         return [
-            'balance_available'    => 'decimal:8',
             'balance_in_operation' => 'decimal:8',
             'balance_total'        => 'decimal:8',
         ];

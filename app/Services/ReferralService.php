@@ -84,12 +84,11 @@ final class ReferralService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $newAvailable = bcadd((string) $wallet->balance_available, $commissionAmount, 8);
-            $newTotal     = bcadd((string) $wallet->balance_total,     $commissionAmount, 8);
+            $newInOperation = bcadd((string) $wallet->balance_in_operation, $commissionAmount, 8);
 
             $wallet->update([
-                'balance_available' => $newAvailable,
-                'balance_total'     => $newTotal,
+                'balance_in_operation' => $newInOperation,
+                'balance_total'        => $newInOperation,
             ]);
 
             $commissionTx = Transaction::create([
