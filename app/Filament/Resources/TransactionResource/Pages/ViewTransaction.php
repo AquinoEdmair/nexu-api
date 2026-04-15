@@ -148,10 +148,16 @@ final class ViewTransaction extends ViewRecord
                 Section::make('Admin responsable')
                     ->columns(2)
                     ->collapsed()
-                    ->visible(fn(Transaction $record): bool =>
-                        $record->type === 'admin_adjustment' ||
-                        ($record->type === 'deposit' && data_get($record->metadata, 'confirmed_by') !== null)
-                    )
+                    ->visible(function (Transaction $record): bool {
+                        if ($record->type === 'admin_adjustment') {
+                            return true;
+                        }
+                        if ($record->type === 'deposit') {
+                            return data_get($record->metadata, 'confirmed_by') !== null
+                                || str_starts_with((string) $record->external_tx_id, 'manual-');
+                        }
+                        return false;
+                    })
                     ->schema([
                         TextEntry::make('admin_name')
                             ->label('Nombre del admin')
@@ -159,11 +165,11 @@ final class ViewTransaction extends ViewRecord
                                 $adminId = $record->type === 'admin_adjustment'
                                     ? data_get($record->metadata, 'admin_id')
                                     : data_get($record->metadata, 'confirmed_by');
-                                if (! $adminId) {
-                                    return '—';
+                                if (! $adminId && str_starts_with((string) $record->external_tx_id, 'manual-')) {
+                                    $adminId = explode('-', $record->external_tx_id)[1] ?? null;
                                 }
-                                $admin = Admin::find($adminId);
-                                return $admin?->name ?? "ID {$adminId}";
+                                if (! $adminId) return '—';
+                                return Admin::find($adminId)?->name ?? "ID {$adminId}";
                             }),
 
                         TextEntry::make('admin_email')
@@ -172,11 +178,11 @@ final class ViewTransaction extends ViewRecord
                                 $adminId = $record->type === 'admin_adjustment'
                                     ? data_get($record->metadata, 'admin_id')
                                     : data_get($record->metadata, 'confirmed_by');
-                                if (! $adminId) {
-                                    return '—';
+                                if (! $adminId && str_starts_with((string) $record->external_tx_id, 'manual-')) {
+                                    $adminId = explode('-', $record->external_tx_id)[1] ?? null;
                                 }
-                                $admin = Admin::find($adminId);
-                                return $admin?->email ?? '—';
+                                if (! $adminId) return '—';
+                                return Admin::find($adminId)?->email ?? '—';
                             })
                             ->copyable(),
                     ]),

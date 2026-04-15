@@ -99,9 +99,12 @@ final class TransactionResource extends Resource
                                 return Admin::find($adminId)?->name ?? "ID {$adminId}";
                             }
                         }
-                        // Manually confirmed deposit: metadata.confirmed_by
+                        // Manually confirmed deposit: metadata.confirmed_by OR external_tx_id (manual-{id}-{ts})
                         if ($record->type === 'deposit') {
                             $adminId = data_get($record->metadata, 'confirmed_by');
+                            if (! $adminId && str_starts_with((string) $record->external_tx_id, 'manual-')) {
+                                $adminId = explode('-', $record->external_tx_id)[1] ?? null;
+                            }
                             if ($adminId) {
                                 return Admin::find($adminId)?->name ?? "ID {$adminId}";
                             }
