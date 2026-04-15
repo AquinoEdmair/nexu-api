@@ -109,7 +109,7 @@ final class TransactionResource extends Resource
                         return '—';
                     })
                     ->placeholder('—')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(isToggledHiddenByDefault: false),
 
                 TextColumn::make('created_at')
                     ->label('Fecha')

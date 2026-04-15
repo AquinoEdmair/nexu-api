@@ -148,12 +148,13 @@ final class DepositService
                     'currency'       => $currency,
                     'status'         => 'confirmed',
                     'external_tx_id' => $txHash,
-                    'metadata'       => [
+                    'metadata'       => array_filter([
                         'invoice_id'      => $invoice->invoice_id,
                         'commission_rate' => $commissionRate,
                         'actually_paid'   => $payload['actually_paid'] ?? null,
                         'pay_currency'    => $payload['pay_currency'] ?? null,
-                    ],
+                        'confirmed_by'    => $payload['confirmed_by'] ?? null,
+                    ], fn($v) => $v !== null),
                 ]);
             } else {
                 $depositTx = Transaction::create([
@@ -165,12 +166,13 @@ final class DepositService
                     'currency'       => $currency,
                     'status'         => 'confirmed',
                     'external_tx_id' => $txHash,
-                    'metadata'       => [
+                    'metadata'       => array_filter([
                         'invoice_id'      => $invoice->invoice_id,
                         'commission_rate' => $commissionRate,
                         'actually_paid'   => $payload['actually_paid'] ?? null,
                         'pay_currency'    => $payload['pay_currency'] ?? null,
-                    ],
+                        'confirmed_by'    => $payload['confirmed_by'] ?? null,
+                    ], fn($v) => $v !== null),
                 ]);
             }
 

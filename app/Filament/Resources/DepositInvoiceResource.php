@@ -196,14 +196,14 @@ final class DepositInvoiceResource extends Resource
                     ->requiresConfirmation()
                     ->modalHeading('Confirmar depósito manualmente')
                     ->modalDescription(fn(DepositInvoice $r): string =>
-                        "Se acreditará \${$r->amount_expected} USD al balance de {$r->user?->name}. Esta acción queda registrada en el log de auditoría."
+                        "Se acreditará $" . number_format((float) $r->amount_expected, 2) . " USD al balance de {$r->user?->name}. Esta acción queda registrada en el log de auditoría."
                     )
                     ->action(function (DepositInvoice $record): void {
                         try {
                             app(DepositService::class)->confirmManually($record, Auth::id());
                             Notification::make()
                                 ->title('Depósito confirmado')
-                                ->body("Se acreditó \${$record->amount_expected} USD al usuario {$record->user?->name}.")
+                                ->body("Se acreditó $" . number_format((float) $record->amount_expected, 2) . " USD al usuario {$record->user?->name}.")
                                 ->success()
                                 ->send();
                         } catch (\Throwable $e) {
