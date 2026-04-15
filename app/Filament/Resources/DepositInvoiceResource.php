@@ -6,6 +6,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\DepositInvoiceResource\Pages\ListDepositInvoices;
 use App\Filament\Resources\DepositInvoiceResource\Pages\ViewDepositInvoice;
+use App\Models\Admin;
 use App\Models\DepositInvoice;
 use App\Services\DepositService;
 use Filament\Forms\Components\Textarea;
@@ -95,6 +96,17 @@ final class DepositInvoiceResource extends Resource
                         ->color(fn(string $state): string => self::statusColor($state))
                         ->formatStateUsing(fn(string $state): string => self::statusLabel($state)),
 
+                    TextEntry::make('confirmed_by_admin')
+                        ->label('Confirmado por')
+                        ->state(function (DepositInvoice $r): string {
+                            if (! str_starts_with((string) $r->tx_hash, 'manual-')) {
+                                return 'Automático (webhook)';
+                            }
+                            preg_match('/^manual-(.+)-(\d+)$/', $r->tx_hash, $m);
+                            $adminId = $m[1] ?? null;
+                            return $adminId ? (Admin::find($adminId)?->name ?? "ID {$adminId}") : 'Manual';
+                        }),
+
                     TextEntry::make('expires_at')
                         ->label('Expira')
                         ->dateTime('d/m/Y H:i'),
@@ -153,6 +165,19 @@ final class DepositInvoiceResource extends Resource
                     ->copyable()
                     ->fontFamily('mono')
                     ->tooltip(fn(DepositInvoice $r): string => $r->address),
+
+                TextColumn::make('confirmed_by')
+                    ->label('Confirmado por')
+                    ->state(function (DepositInvoice $r): string {
+                        if (! str_starts_with((string) $r->tx_hash, 'manual-')) {
+                            return 'Automático';
+                        }
+                        preg_match('/^manual-(.+)-(\d+)$/', $r->tx_hash, $m);
+                        $adminId = $m[1] ?? null;
+                        return $adminId ? (Admin::find($adminId)?->name ?? "ID {$adminId}") : 'Manual';
+                    })
+                    ->badge()
+                    ->color(fn(string $state): string => $state === 'Automático' ? 'gray' : 'warning'),
 
                 TextColumn::make('status')
                     ->label('Estado')
