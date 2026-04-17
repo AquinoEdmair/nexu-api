@@ -19,16 +19,23 @@ final class YieldController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $perPage = $request->integer('per_page', 20);
+        $perPage = min($request->integer('per_page', 20), 500);
+        $days    = $request->integer('days', 0);
 
         /** @var \App\Models\User $user */
         $user = $request->user();
 
-        $yields = YieldLogUser::where('user_id', $user->id)
+        $query = YieldLogUser::where('user_id', $user->id)
             ->with('yieldLog')
-            ->latest()
-            ->paginate($perPage);
+            ->latest();
 
-        return response()->json($yields);
+        if ($days > 0) {
+            $since = $days === 1
+                ? now()->startOfDay()
+                : now()->subDays($days);
+            $query->where('created_at', '>=', $since);
+        }
+
+        return response()->json($query->paginate($perPage));
     }
 }

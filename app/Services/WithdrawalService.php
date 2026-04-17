@@ -206,9 +206,11 @@ final class WithdrawalService
     /**
      * Cancel a pending withdrawal request (user-initiated).
      * Full amount is returned (no fee on cancellations).
+     * Only allowed within 1 hour of creation.
      *
      * @throws AuthorizationException
      * @throws InvalidStatusTransitionException
+     * @throws \DomainException
      * @throws \Throwable
      */
     public function cancel(WithdrawalRequest $request, User $user): WithdrawalRequest
@@ -217,13 +219,21 @@ final class WithdrawalService
             throw new AuthorizationException('Solo el propietario puede cancelar esta solicitud.');
         }
 
+        if ($request->cancellationSecondsLeft() === 0) {
+            throw new \DomainException('La ventana de cancelación de 1 hora ha expirado.');
+        }
+
         $result = DB::transaction(function () use ($request): WithdrawalRequest {
             $fresh = WithdrawalRequest::lockForUpdate()->findOrFail($request->id);
 
             $this->assertStatus($fresh, 'pending');
 
+            if ($fresh->cancellationSecondsLeft() === 0) {
+                throw new \DomainException('La ventana de cancelación de 1 hora ha expirado.');
+            }
+
             $fresh->update([
-                'status'           => 'rejected',
+                'status'           => 'cancelled',
                 'rejection_reason' => 'Cancelado por el usuario',
             ]);
 

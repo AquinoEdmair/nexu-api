@@ -152,11 +152,11 @@ final class ViewWithdrawalRequest extends ViewRecord
                             ->placeholder('—'),
 
                         TextEntry::make('rejection_reason')
-                            ->label('Motivo de rechazo')
+                            ->label(fn (WithdrawalRequest $record): string => $record->status === 'cancelled' ? 'Motivo de cancelación' : 'Motivo de rechazo')
                             ->placeholder('—')
-                            ->color('danger')
+                            ->color(fn (WithdrawalRequest $record): string => $record->status === 'cancelled' ? 'gray' : 'danger')
                             ->columnSpanFull()
-                            ->visible(fn (WithdrawalRequest $record): bool => $record->status === 'rejected'),
+                            ->visible(fn (WithdrawalRequest $record): bool => in_array($record->status, ['rejected', 'cancelled'], strict: true)),
 
                         TextEntry::make('tx_hash')
                             ->label('Hash de transacción')

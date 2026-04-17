@@ -80,11 +80,11 @@ final class DashboardMetricsService
         return $this->cached('financial_summary', self::TTL_CHART, function (): FinancialSummaryDTO {
             $sums = Transaction::where('status', 'confirmed')
                 ->selectRaw("
-                    SUM(CASE WHEN type = 'deposit'              THEN net_amount ELSE 0 END) AS total_deposited,
-                    SUM(CASE WHEN type = 'withdrawal'           THEN net_amount ELSE 0 END) AS total_withdrawn,
-                    SUM(CASE WHEN type = 'yield'                THEN net_amount ELSE 0 END) AS total_yield,
-                    SUM(CASE WHEN type = 'commission'           THEN net_amount ELSE 0 END) AS total_commissions,
-                    SUM(CASE WHEN type = 'referral_commission'  THEN net_amount ELSE 0 END) AS total_referral_commissions
+                    SUM(CASE WHEN type = 'deposit'              THEN net_amount            ELSE 0 END) AS total_deposited,
+                    SUM(CASE WHEN type = 'withdrawal'           THEN ABS(net_amount)       ELSE 0 END) AS total_withdrawn,
+                    SUM(CASE WHEN type = 'yield'                THEN net_amount            ELSE 0 END) AS total_yield,
+                    SUM(CASE WHEN type = 'commission'           THEN net_amount            ELSE 0 END) AS total_commissions,
+                    SUM(CASE WHEN type = 'referral_commission'  THEN net_amount            ELSE 0 END) AS total_referral_commissions
                 ")
                 ->first();
 
@@ -247,10 +247,13 @@ final class DashboardMetricsService
      */
     private function buildDailyVolume(string $type, int $days): array
     {
+        // Withdrawals store net_amount as negative — use ABS so charts show positive values
+        $amountExpr = $type === 'withdrawal' ? 'SUM(ABS(net_amount))' : 'SUM(net_amount)';
+
         return Transaction::where('type', $type)
             ->where('status', 'confirmed')
             ->where('created_at', '>=', now()->subDays($days))
-            ->selectRaw('DATE(created_at) AS day, SUM(net_amount) AS total, COUNT(*) AS count')
+            ->selectRaw("DATE(created_at) AS day, {$amountExpr} AS total, COUNT(*) AS count")
             ->groupByRaw('DATE(created_at)')
             ->orderBy('day')
             ->get()

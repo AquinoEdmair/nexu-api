@@ -67,6 +67,22 @@ final class WithdrawalRequest extends Model
         $query->where('status', 'rejected');
     }
 
+    /** @param \Illuminate\Database\Eloquent\Builder<WithdrawalRequest> $query */
+    public function scopeCancelled($query): void
+    {
+        $query->where('status', 'cancelled');
+    }
+
+    /**
+     * Seconds remaining in the 1-hour cancellation window (0 if expired).
+     */
+    public function cancellationSecondsLeft(): int
+    {
+        $expiresAt = $this->created_at->addHour();
+
+        return max(0, (int) now()->diffInSeconds($expiresAt, absolute: false));
+    }
+
     // ── Relations ────────────────────────────────────────────────────────────
 
     /** @return BelongsTo<User, $this> */

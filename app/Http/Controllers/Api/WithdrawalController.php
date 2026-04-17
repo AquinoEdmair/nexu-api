@@ -117,6 +117,10 @@ final class WithdrawalController extends Controller
             return response()->json([
                 'message' => $e->getMessage(),
             ], 403);
+        } catch (\DomainException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (InvalidStatusTransitionException) {
             return response()->json([
                 'message' => 'No se puede cancelar: el retiro ya no está en estado pendiente.',

@@ -116,21 +116,40 @@ final class GoldService
     /**
      * Obtiene noticias relacionadas al oro desde NewsAPI.org
      */
+    // Keywords that must appear in title/description for the article to pass gold-commodity filter
+    private const GOLD_REQUIRED_TERMS = [
+        'xau', 'oro físico', 'precio del oro', 'gold price', 'lingote', 'onza troy',
+        'reservas de oro', 'gold bullion', 'gold reserve', 'xau/usd', 'commodities oro',
+        'metal precioso', 'precious metal', 'gold etf', 'fondo de oro',
+    ];
+
+    // Terms that indicate the article is NOT about the gold commodity
+    private const GOLD_EXCLUSION_TERMS = [
+        'medalla de oro', 'gold medal', 'golden state', 'golden globes',
+        'record de oro', 'disco de oro', 'mastercard gold', 'tarjeta gold',
+        'visa gold', 'plan gold', 'suscripción gold', 'membresía gold',
+        'edad de oro', 'golden age', 'gold standard certificate',
+    ];
+
     public function getGoldNews(): array
     {
         return Cache::remember('gold:news_feed', self::CACHE_TTL_NEWS, function () {
             $apiKey = config('services.newsapi.key');
-            
+
             if (blank($apiKey)) {
                 return [];
             }
 
             try {
+                // Tight query — commodity-specific gold terms only
+                $q = '"gold price" OR "XAU/USD" OR "XAU" OR "precio del oro" OR "gold bullion" '
+                   . 'OR "reservas de oro" OR "lingotes de oro" OR "onza troy" OR "metal precioso" '
+                   . 'OR "gold ETF" OR "fondo de oro"';
+
                 $response = Http::get('https://newsapi.org/v2/everything', [
-                    'q'        => '(oro OR gold OR XAU) AND (precio OR price OR mercado OR market OR inversión OR investment)',
-                    'language' => 'es',
+                    'q'        => $q,
                     'sortBy'   => 'publishedAt',
-                    'pageSize' => 6,
+                    'pageSize' => 15,   // fetch extra so we have enough after filtering
                     'apiKey'   => $apiKey,
                 ]);
 
@@ -140,23 +159,81 @@ final class GoldService
                 }
 
                 $articles = $response->json()['articles'] ?? [];
-                
-                return array_map(function ($article) {
+
+                $filtered = array_filter($articles, fn ($a) => $this->isGoldCommodityArticle($a));
+
+                $mapped = array_map(function ($article) {
                     return [
-                        'title'  => $article['title'],
-                        'excerpt' => $article['description'],
-                        'date'   => now()->parse($article['publishedAt'])->diffForHumans(),
-                        'source' => $article['source']['name'],
-                        'url'    => $article['url'],
-                        'category' => 'Mercado'
+                        'title'    => $article['title'],
+                        'excerpt'  => $article['description'],
+                        'date'     => now()->parse($article['publishedAt'])->diffForHumans(),
+                        'source'   => $article['source']['name'],
+                        'url'      => $article['url'],
+                        'category' => $this->detectCategory($article),
                     ];
-                }, $articles);
+                }, array_values($filtered));
+
+                return array_slice($mapped, 0, 6);
 
             } catch (\Throwable $e) {
                 Log::error("NewsService Exception: " . $e->getMessage());
                 return [];
             }
         });
+    }
+
+    /**
+     * Returns true if the article is clearly about gold as a commodity / investment asset.
+     */
+    private function isGoldCommodityArticle(array $article): bool
+    {
+        $text = strtolower(($article['title'] ?? '') . ' ' . ($article['description'] ?? ''));
+
+        // Reject if exclusion term found
+        foreach (self::GOLD_EXCLUSION_TERMS as $term) {
+            if (str_contains($text, $term)) {
+                return false;
+            }
+        }
+
+        // Accept if at least one gold-commodity term found
+        foreach (self::GOLD_REQUIRED_TERMS as $term) {
+            if (str_contains($text, $term)) {
+                return true;
+            }
+        }
+
+        // Fallback: accept if text contains "gold" or "oro" AND a price/finance signal
+        $hasGold    = str_contains($text, 'gold') || str_contains($text, ' oro ');
+        $hasFinance = (bool) preg_match('/\$([\d,]+)|precio|price|mercado|market|inversi|reserve|etf|commodity/i', $text);
+
+        return $hasGold && $hasFinance;
+    }
+
+    /**
+     * Assign a display category based on article content.
+     */
+    private function detectCategory(array $article): string
+    {
+        $text = strtolower(($article['title'] ?? '') . ' ' . ($article['description'] ?? ''));
+
+        if (str_contains($text, 'banco central') || str_contains($text, 'central bank') || str_contains($text, 'reserva federal') || str_contains($text, 'fed ')) {
+            return 'Banco Central';
+        }
+        if (str_contains($text, 'etf') || str_contains($text, 'fondo') || str_contains($text, 'fund')) {
+            return 'ETF / Fondos';
+        }
+        if (str_contains($text, 'geopolít') || str_contains($text, 'geopolit') || str_contains($text, 'guerra') || str_contains($text, 'war') || str_contains($text, 'tensión')) {
+            return 'Geopolítica';
+        }
+        if (str_contains($text, 'xau/usd') || str_contains($text, 'precio') || str_contains($text, 'price') || str_contains($text, 'cotización')) {
+            return 'XAU/USD';
+        }
+        if (str_contains($text, 'token') || str_contains($text, 'digital') || str_contains($text, 'blockchain')) {
+            return 'Oro Digital';
+        }
+
+        return 'Mercado';
     }
 
 }

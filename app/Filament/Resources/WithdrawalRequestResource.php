@@ -114,6 +114,7 @@ final class WithdrawalRequestResource extends Resource
                         'approved'  => 'Aprobado',
                         'completed' => 'Completado',
                         'rejected'  => 'Rechazado',
+                        'cancelled' => 'Cancelado',
                     ]),
 
                 SelectFilter::make('currency')
@@ -162,6 +163,7 @@ final class WithdrawalRequestResource extends Resource
             'approved'  => 'info',
             'completed' => 'success',
             'rejected'  => 'danger',
+            'cancelled' => 'gray',
             default     => 'gray',
         };
     }
@@ -173,6 +175,7 @@ final class WithdrawalRequestResource extends Resource
             'approved'  => 'Aprobado',
             'completed' => 'Completado',
             'rejected'  => 'Rechazado',
+            'cancelled' => 'Cancelado',
             default     => $status,
         };
     }
