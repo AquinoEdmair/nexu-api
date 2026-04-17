@@ -116,19 +116,25 @@ final class GoldService
     /**
      * Obtiene noticias relacionadas al oro desde NewsAPI.org
      */
-    // Keywords that must appear in title/description for the article to pass gold-commodity filter
-    private const GOLD_REQUIRED_TERMS = [
-        'xau', 'oro físico', 'precio del oro', 'gold price', 'lingote', 'onza troy',
-        'reservas de oro', 'gold bullion', 'gold reserve', 'xau/usd', 'commodities oro',
-        'metal precioso', 'precious metal', 'gold etf', 'fondo de oro',
+    // Article MUST contain at least one of these to pass (XAU/USD or gold-crypto context)
+    private const XAU_REQUIRED_TERMS = [
+        'xau/usd', 'xau usd', 'xauusd',
+        'paxg', 'tether gold', 'xaut',
+        'tokenized gold', 'oro tokenizado', 'gold-backed crypto', 'gold backed crypto',
+        'oro digital', 'digital gold',
+        'bitcoin gold', 'gold bitcoin', 'btc gold', 'gold btc',
+        'gold crypto', 'crypto gold',
+        'oro y cripto', 'cripto y oro',
     ];
 
-    // Terms that indicate the article is NOT about the gold commodity
-    private const GOLD_EXCLUSION_TERMS = [
-        'medalla de oro', 'gold medal', 'golden state', 'golden globes',
-        'record de oro', 'disco de oro', 'mastercard gold', 'tarjeta gold',
-        'visa gold', 'plan gold', 'suscripción gold', 'membresía gold',
-        'edad de oro', 'golden age', 'gold standard certificate',
+    // Hard reject — article is clearly not about XAU/USD or gold crypto
+    private const XAU_EXCLUSION_TERMS = [
+        'medalla de oro', 'gold medal', 'golden state', 'golden globes', 'golden globe',
+        'disco de oro', 'album de oro', 'gold album', 'mastercard gold', 'tarjeta gold',
+        'visa gold', 'plan gold', 'suscripción gold', 'membresía gold', 'edad de oro',
+        'golden age', 'golden gate', 'golden retriever', 'gold coast',
+        'olympic gold', 'olimpiadas', 'juegos olímpicos',
+        'gold standard certificate',
     ];
 
     public function getGoldNews(): array
@@ -141,15 +147,15 @@ final class GoldService
             }
 
             try {
-                // Tight query — commodity-specific gold terms only
-                $q = '"gold price" OR "XAU/USD" OR "XAU" OR "precio del oro" OR "gold bullion" '
-                   . 'OR "reservas de oro" OR "lingotes de oro" OR "onza troy" OR "metal precioso" '
-                   . 'OR "gold ETF" OR "fondo de oro"';
+                // Only XAU/USD as a trading pair or gold-crypto assets
+                $q = '"XAU/USD" OR "XAU USD" OR "XAUUSD" OR "PAXG" OR "Tether Gold" OR "XAUT" '
+                   . 'OR "tokenized gold" OR "oro tokenizado" OR "gold-backed crypto" '
+                   . 'OR "digital gold" OR "oro digital" OR "bitcoin gold" OR "gold bitcoin"';
 
                 $response = Http::get('https://newsapi.org/v2/everything', [
                     'q'        => $q,
                     'sortBy'   => 'publishedAt',
-                    'pageSize' => 15,   // fetch extra so we have enough after filtering
+                    'pageSize' => 20,
                     'apiKey'   => $apiKey,
                 ]);
 
@@ -160,7 +166,7 @@ final class GoldService
 
                 $articles = $response->json()['articles'] ?? [];
 
-                $filtered = array_filter($articles, fn ($a) => $this->isGoldCommodityArticle($a));
+                $filtered = array_filter($articles, fn ($a) => $this->isXauCryptoArticle($a));
 
                 $mapped = array_map(function ($article) {
                     return [
@@ -183,31 +189,26 @@ final class GoldService
     }
 
     /**
-     * Returns true if the article is clearly about gold as a commodity / investment asset.
+     * Returns true only if article is specifically about XAU/USD or gold-crypto assets.
+     * No loose fallback — must match an XAU/crypto term explicitly.
      */
-    private function isGoldCommodityArticle(array $article): bool
+    private function isXauCryptoArticle(array $article): bool
     {
         $text = strtolower(($article['title'] ?? '') . ' ' . ($article['description'] ?? ''));
 
-        // Reject if exclusion term found
-        foreach (self::GOLD_EXCLUSION_TERMS as $term) {
+        foreach (self::XAU_EXCLUSION_TERMS as $term) {
             if (str_contains($text, $term)) {
                 return false;
             }
         }
 
-        // Accept if at least one gold-commodity term found
-        foreach (self::GOLD_REQUIRED_TERMS as $term) {
+        foreach (self::XAU_REQUIRED_TERMS as $term) {
             if (str_contains($text, $term)) {
                 return true;
             }
         }
 
-        // Fallback: accept if text contains "gold" or "oro" AND a price/finance signal
-        $hasGold    = str_contains($text, 'gold') || str_contains($text, ' oro ');
-        $hasFinance = (bool) preg_match('/\$([\d,]+)|precio|price|mercado|market|inversi|reserve|etf|commodity/i', $text);
-
-        return $hasGold && $hasFinance;
+        return false;
     }
 
     /**
@@ -229,11 +230,14 @@ final class GoldService
         if (str_contains($text, 'xau/usd') || str_contains($text, 'precio') || str_contains($text, 'price') || str_contains($text, 'cotización')) {
             return 'XAU/USD';
         }
-        if (str_contains($text, 'token') || str_contains($text, 'digital') || str_contains($text, 'blockchain')) {
+        if (str_contains($text, 'token') || str_contains($text, 'blockchain') || str_contains($text, 'paxg') || str_contains($text, 'xaut') || str_contains($text, 'tether gold') || str_contains($text, 'digital gold') || str_contains($text, 'oro digital')) {
             return 'Oro Digital';
         }
+        if (str_contains($text, 'bitcoin') || str_contains($text, 'btc') || str_contains($text, 'crypto') || str_contains($text, 'cripto')) {
+            return 'Cripto';
+        }
 
-        return 'Mercado';
+        return 'XAU/USD';
     }
 
 }

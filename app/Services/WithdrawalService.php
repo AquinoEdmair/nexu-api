@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Models\Wallet;
 use App\Models\WithdrawalRequest;
 use App\Notifications\WithdrawalCompletedNotification;
+use App\Notifications\WithdrawalCreatedNotification;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
@@ -38,7 +39,7 @@ final class WithdrawalService
      */
     public function create(CreateWithdrawalDTO $dto, User $user): WithdrawalRequest
     {
-        return DB::transaction(function () use ($dto, $user): WithdrawalRequest {
+        $result = DB::transaction(function () use ($dto, $user): WithdrawalRequest {
             /** @var Wallet $wallet */
             $wallet = Wallet::where('user_id', $user->id)
                 ->lockForUpdate()
@@ -83,6 +84,10 @@ final class WithdrawalService
 
             return $request;
         });
+
+        $user->notify(new WithdrawalCreatedNotification($result));
+
+        return $result;
     }
 
     /**
