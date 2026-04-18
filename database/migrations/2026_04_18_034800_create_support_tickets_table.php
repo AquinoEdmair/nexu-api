@@ -15,7 +15,8 @@ return new class extends Migration
             $table->foreignUuid('user_id')->constrained()->cascadeOnDelete();
             $table->string('subject');
             $table->string('status')->default('open'); // open | in_progress | closed
-            $table->foreignId('closed_by')->nullable()->constrained('admins')->nullOnDelete();
+            $table->uuid('closed_by')->nullable();
+            $table->foreign('closed_by')->references('id')->on('admins')->nullOnDelete();
             $table->timestamp('closed_at')->nullable();
             $table->timestamps();
 
