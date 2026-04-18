@@ -80,6 +80,7 @@ final class WithdrawalController extends Controller
         $user = $request->user();
 
         $query = WithdrawalRequest::where('user_id', $user->id)
+            ->with('reviewer')
             ->orderByDesc('created_at');
 
         $status = $request->query('status');
@@ -149,6 +150,7 @@ final class WithdrawalController extends Controller
             'destination_address' => $w->destination_address,
             'status'              => $w->status,
             'reviewed_by'         => $w->reviewed_by,
+            'reviewed_by_name'    => $w->reviewer?->name,
             'reviewed_at'         => $w->reviewed_at?->toIso8601String(),
             'rejection_reason'    => $w->rejection_reason,
             'tx_hash'             => $w->tx_hash,

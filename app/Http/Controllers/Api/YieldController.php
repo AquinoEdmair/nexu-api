@@ -27,7 +27,7 @@ final class YieldController extends Controller
         $user = $request->user();
 
         $query = YieldLogUser::where('user_id', $user->id)
-            ->with('yieldLog')
+            ->with(['yieldLog.appliedBy'])
             ->latest();
 
         if ($hours > 0) {
