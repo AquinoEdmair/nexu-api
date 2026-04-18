@@ -20,7 +20,7 @@ final class WithdrawalCompletedNotification extends Notification
     /** @return array<string> */
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['mail', 'database'];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -36,5 +36,17 @@ final class WithdrawalCompletedNotification extends Notification
             ->line("**Hash de transacción:** `{$txHash}`")
             ->line('Los fondos deberían aparecer en tu dirección de destino en breve, según la red blockchain.')
             ->action('Ver historial', config('app.frontend_url', config('app.url')));
+    }
+
+    /** @return array<string, mixed> */
+    public function toDatabase(object $notifiable): array
+    {
+        return [
+            'type'  => 'withdrawal_completed',
+            'title' => 'Retiro enviado',
+            'body'  => 'Tu retiro de $' . number_format((float) $this->request->amount, 2) . ' ' . $this->request->currency . ' fue enviado exitosamente.',
+            'url'   => '/withdrawals',
+            'meta'  => ['withdrawal_id' => $this->request->id, 'tx_hash' => $this->request->tx_hash],
+        ];
     }
 }

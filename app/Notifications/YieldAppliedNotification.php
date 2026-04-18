@@ -20,7 +20,7 @@ final class YieldAppliedNotification extends Notification
     /** @return array<string> */
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['mail', 'database'];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -47,5 +47,18 @@ final class YieldAppliedNotification extends Notification
             ->action('Ver mi cuenta', config('app.frontend_url', config('app.url')));
     }
 
-}
+    /** @return array<string, mixed> */
+    public function toDatabase(object $notifiable): array
+    {
+        $amount = (float) $this->yieldLogUser->amount_applied;
+        $positive = $amount >= 0;
 
+        return [
+            'type'  => 'yield_applied',
+            'title' => $positive ? 'Rendimiento aplicado' : 'Ajuste de rendimiento',
+            'body'  => ($positive ? '+$' : '-$') . number_format(abs($amount), 2) . ' USD aplicado a tu saldo en operación.',
+            'url'   => '/yields',
+            'meta'  => ['amount' => $this->yieldLogUser->amount_applied, 'balance_after' => $this->yieldLogUser->balance_after],
+        ];
+    }
+}

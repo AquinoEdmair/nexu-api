@@ -20,7 +20,7 @@ final class WithdrawalRejectedNotification extends Notification
     /** @return array<string> */
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['mail', 'database'];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -37,5 +37,17 @@ final class WithdrawalRejectedNotification extends Notification
             ->line("**Motivo:** {$reason}")
             ->line('Los fondos han sido devueltos a tu saldo disponible.')
             ->action('Ver mi cuenta', config('app.frontend_url', config('app.url')));
+    }
+
+    /** @return array<string, mixed> */
+    public function toDatabase(object $notifiable): array
+    {
+        return [
+            'type'  => 'withdrawal_rejected',
+            'title' => 'Retiro rechazado',
+            'body'  => 'Tu retiro de $' . number_format((float) $this->request->amount, 2) . ' ' . $this->request->currency . ' fue rechazado. Fondos devueltos a tu saldo.',
+            'url'   => '/withdrawals',
+            'meta'  => ['withdrawal_id' => $this->request->id, 'reason' => $this->request->rejection_reason],
+        ];
     }
 }

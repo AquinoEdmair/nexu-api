@@ -9,6 +9,8 @@ use App\Models\ElitePoint;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Notifications\BalanceAdjustedNotification;
+use App\Notifications\PointsAdjustedNotification;
 use Illuminate\Support\Facades\DB;
 
 final class AdminAdjustmentService
@@ -36,7 +38,7 @@ final class AdminAdjustmentService
             $field = 'balance_in_operation';
         }
 
-        return DB::transaction(function () use ($user, $field, $delta, $reason, $adminId): Transaction {
+        $transaction = DB::transaction(function () use ($user, $field, $delta, $reason, $adminId): Transaction {
             /** @var Wallet $wallet */
             $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->firstOrFail();
 
@@ -72,6 +74,10 @@ final class AdminAdjustmentService
                 ],
             ]);
         });
+
+        $user->notify(new BalanceAdjustedNotification($transaction));
+
+        return $transaction;
     }
 
     /**
@@ -95,6 +101,8 @@ final class AdminAdjustmentService
         ]);
 
         RecalculateEliteTierJob::dispatch($user->id);
+
+        $user->notify(new PointsAdjustedNotification($point, $reason));
 
         return $point;
     }

@@ -20,7 +20,7 @@ final class TicketCreatedNotification extends Notification
     /** @return array<string> */
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['mail', 'database'];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -35,5 +35,19 @@ final class TicketCreatedNotification extends Notification
             ->line('Puedes seguir el estado de tu ticket y responder directamente desde tu dashboard en la plataforma.')
             ->line('Si necesitas información adicional urgente, puedes responder a este correo.')
             ->action('Ver mi ticket', config('app.frontend_url', config('app.url')) . '/support');
+    }
+
+    /** @return array<string, mixed> */
+    public function toDatabase(object $notifiable): array
+    {
+        $ticketId = strtoupper(substr($this->ticket->id, 0, 8));
+
+        return [
+            'type'  => 'ticket_created',
+            'title' => 'Ticket de soporte recibido',
+            'body'  => "Tu ticket #{$ticketId} — {$this->ticket->subject} ha sido registrado. Responderemos en máx. 48 horas hábiles.",
+            'url'   => '/support',
+            'meta'  => ['ticket_id' => $this->ticket->id, 'subject' => $this->ticket->subject],
+        ];
     }
 }

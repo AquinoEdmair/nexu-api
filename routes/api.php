@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\ReferralController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\WebhookController;
 use App\Http\Controllers\Api\WithdrawalController;
+use App\Http\Controllers\Api\InAppNotificationController;
 use App\Http\Controllers\Api\SupportTicketController;
 use App\Http\Controllers\Api\WithdrawalCurrencyController;
 use App\Http\Controllers\Api\YieldController;
@@ -117,6 +118,14 @@ Route::middleware(['auth:api', 'user.active'])->group(function (): void {
         Route::post('/tickets',                   [SupportTicketController::class, 'store'])->middleware('throttle:10,1');
         Route::get('/tickets/{id}',               [SupportTicketController::class, 'show']);
         Route::post('/tickets/{id}/messages',     [SupportTicketController::class, 'reply'])->middleware('throttle:30,1');
+    });
+
+    // In-app notifications
+    Route::prefix('notifications')->group(function (): void {
+        Route::get('/',            [InAppNotificationController::class, 'index']);
+        Route::get('/unread-count', [InAppNotificationController::class, 'unreadCount']);
+        Route::post('/{id}/read', [InAppNotificationController::class, 'markRead']);
+        Route::post('/read-all',  [InAppNotificationController::class, 'markAllRead']);
     });
 
     // Referrals

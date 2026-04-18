@@ -20,7 +20,7 @@ final class WithdrawalApprovedNotification extends Notification
     /** @return array<string> */
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['mail', 'database'];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -39,5 +39,17 @@ final class WithdrawalApprovedNotification extends Notification
             ->line('El proceso puede tomar **hasta 48 horas hábiles** desde la aprobación.')
             ->line('Si tienes alguna duda o necesitas más información, puedes contactarnos respondiendo este correo o a través del soporte en la plataforma.')
             ->action('Ver estado en la app', config('app.frontend_url', config('app.url')));
+    }
+
+    /** @return array<string, mixed> */
+    public function toDatabase(object $notifiable): array
+    {
+        return [
+            'type'  => 'withdrawal_approved',
+            'title' => 'Retiro aprobado',
+            'body'  => 'Tu retiro de $' . number_format((float) $this->request->amount, 2) . ' ' . $this->request->currency . ' fue aprobado y está siendo procesado.',
+            'url'   => '/withdrawals',
+            'meta'  => ['withdrawal_id' => $this->request->id, 'amount' => $this->request->amount, 'currency' => $this->request->currency],
+        ];
     }
 }
