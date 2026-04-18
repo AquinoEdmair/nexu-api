@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\WebhookController;
 use App\Http\Controllers\Api\WithdrawalController;
 use App\Http\Controllers\Api\YieldController;
+use App\Http\Controllers\ContactMessageController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -36,6 +37,8 @@ Route::prefix('auth')->middleware('throttle:10,1')->group(function (): void {
     Route::post('/email/resend', [EmailVerificationController::class, 'resendByEmail']);
     Route::post('/validate-referral-code', [ReferralController::class, 'validateCode']);
 });
+
+Route::post('/contact', [ContactMessageController::class, 'store']);
 
 // Email verification link from the email (signed URL, no auth)
 Route::get('/auth/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])

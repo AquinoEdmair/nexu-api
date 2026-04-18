@@ -21,6 +21,7 @@ final class YieldController extends Controller
     {
         $perPage = min($request->integer('per_page', 20), 500);
         $days    = $request->integer('days', 0);
+        $hours   = $request->integer('hours', 0);
 
         /** @var \App\Models\User $user */
         $user = $request->user();
@@ -29,7 +30,9 @@ final class YieldController extends Controller
             ->with('yieldLog')
             ->latest();
 
-        if ($days > 0) {
+        if ($hours > 0) {
+            $query->where('created_at', '>=', now()->subHours($hours));
+        } elseif ($days > 0) {
             $since = $days === 1
                 ? now()->startOfDay()
                 : now()->subDays($days);
