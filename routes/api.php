@@ -14,6 +14,8 @@ use App\Http\Controllers\Api\ReferralController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\WebhookController;
 use App\Http\Controllers\Api\WithdrawalController;
+use App\Http\Controllers\Api\SupportTicketController;
+use App\Http\Controllers\Api\WithdrawalCurrencyController;
 use App\Http\Controllers\Api\YieldController;
 use Illuminate\Support\Facades\Route;
 
@@ -44,6 +46,9 @@ Route::get('/auth/email/verify/{id}/{hash}', [EmailVerificationController::class
 
 // ── Crypto currencies (public) ───────────────────────────────────────────
 Route::get('/crypto/currencies', [CryptoCurrencyController::class, 'index']);
+
+// ── Withdrawal currencies (public) ───────────────────────────────────────
+Route::get('/withdrawals/currencies', [WithdrawalCurrencyController::class, 'index']);
 
 // ── Elite tiers (public) ─────────────────────────────────────────────────
 Route::get('/elite/tiers', [EliteTierController::class, 'index']);
@@ -102,6 +107,14 @@ Route::middleware(['auth:api', 'user.active'])->group(function (): void {
     Route::post('/investments', [InvestmentController::class, 'store'])
         ->middleware('throttle:20,1');
     Route::get('/investments', [InvestmentController::class, 'index']);
+
+    // Support Tickets
+    Route::prefix('support')->group(function (): void {
+        Route::get('/tickets',                    [SupportTicketController::class, 'index']);
+        Route::post('/tickets',                   [SupportTicketController::class, 'store'])->middleware('throttle:10,1');
+        Route::get('/tickets/{id}',               [SupportTicketController::class, 'show']);
+        Route::post('/tickets/{id}/messages',     [SupportTicketController::class, 'reply'])->middleware('throttle:30,1');
+    });
 
     // Referrals
     Route::prefix('referrals')->group(function (): void {
