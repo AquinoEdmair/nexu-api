@@ -181,16 +181,17 @@ final class YieldService
                 ]);
 
                 Transaction::create([
-                    'user_id' => $userId,
-                    'wallet_id' => $wallet->id,
-                    'type' => 'yield',
-                    'amount' => round(abs($amount), 8),
-                    'fee_amount' => 0,
-                    'net_amount' => round($amount, 8),
-                    'currency' => 'USD',
-                    'status' => 'confirmed',
+                    'user_id'        => $userId,
+                    'wallet_id'      => $wallet->id,
+                    'type'           => 'yield',
+                    'amount'         => round(abs($amount), 8),
+                    'fee_amount'     => 0,
+                    'net_amount'     => round($amount, 8),
+                    'currency'       => 'USD',
+                    'status'         => 'confirmed',
                     'reference_type' => 'yield_log',
-                    'reference_id' => $yieldLog->id,
+                    'reference_id'   => $yieldLog->id,
+                    'metadata'       => ['admin_id' => $yieldLog->applied_by],
                 ]);
             }
 

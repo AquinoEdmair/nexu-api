@@ -314,6 +314,7 @@ final class WithdrawalService
             'status'         => $txStatus,
             'reference_type' => 'withdrawal_request',
             'reference_id'   => $request->id,
+            'metadata'       => ['admin_id' => $request->reviewed_by],
         ]);
     }
 }
