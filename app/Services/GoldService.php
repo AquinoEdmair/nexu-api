@@ -139,7 +139,7 @@ final class GoldService
 
     public function getGoldNews(): array
     {
-        return Cache::remember('gold:news_feed', self::CACHE_TTL_NEWS, function () {
+        return Cache::remember('gold:news_feed_v2', self::CACHE_TTL_NEWS, function () {
             $apiKey = config('services.newsapi.key');
 
             if (blank($apiKey)) {
