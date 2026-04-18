@@ -99,7 +99,7 @@ final class ViewYieldLog extends ViewRecord
 
                         TextEntry::make('total_applied')
                             ->label('Total aplicado')
-                            ->numeric(decimalPlaces: 8)
+                            ->numeric(decimalPlaces: 2)
                             ->prefix('$'),
 
                         TextEntry::make('error_message')

@@ -20,6 +20,8 @@ final class SupportTicketResource extends Resource
     protected static ?string $navigationLabel = 'Soporte';
     protected static ?string $navigationGroup = 'Operaciones';
     protected static ?int $navigationSort = 5;
+    protected static ?string $modelLabel = 'Ticket de Soporte';
+    protected static ?string $pluralModelLabel = 'Tickets de Soporte';
 
     public static function getNavigationBadge(): ?string
     {

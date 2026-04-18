@@ -69,9 +69,9 @@
                         @endphp
                         <tr class="{{ $rowClass }}">
                             <td class="px-4 py-2">{{ $row->userEmail }}</td>
-                            <td class="px-4 py-2 text-right font-mono">${{ $row->balanceBefore }}</td>
-                            <td class="px-4 py-2 text-right font-mono">${{ $row->amountToApply }}</td>
-                            <td class="px-4 py-2 text-right font-mono">${{ $row->balanceAfter }}</td>
+                            <td class="px-4 py-2 text-right font-mono">${{ number_format((float) $row->balanceBefore, 2) }}</td>
+                            <td class="px-4 py-2 text-right font-mono">${{ number_format((float) $row->amountToApply, 2) }}</td>
+                            <td class="px-4 py-2 text-right font-mono">${{ number_format((float) $row->balanceAfter, 2) }}</td>
                         </tr>
                     @endforeach
                 </tbody>

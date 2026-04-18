@@ -76,7 +76,7 @@ final class YieldLogResource extends Resource
 
                 TextColumn::make('total_applied')
                     ->label('Total aplicado')
-                    ->formatStateUsing(fn(string $state): string => TransactionResource::formatSmart($state))
+                    ->formatStateUsing(fn(string $state): string => number_format((float) $state, 2))
                     ->prefix('$')
                     ->sortable(),
 
