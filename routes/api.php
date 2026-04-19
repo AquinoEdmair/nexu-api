@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\InAppNotificationController;
 use App\Http\Controllers\Api\SupportTicketController;
 use App\Http\Controllers\Api\WithdrawalCurrencyController;
 use App\Http\Controllers\Api\YieldController;
+use App\Http\Controllers\Api\TeamMemberController;
 use App\Http\Controllers\ContactMessageController;
 use Illuminate\Support\Facades\Route;
 
@@ -42,6 +43,7 @@ Route::prefix('auth')->middleware('throttle:10,1')->group(function (): void {
 });
 
 Route::post('/contact', [ContactMessageController::class, 'store']);
+Route::get('/team', [TeamMemberController::class, 'index']);
 
 // Email verification link from the email (signed URL, no auth)
 Route::get('/auth/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
