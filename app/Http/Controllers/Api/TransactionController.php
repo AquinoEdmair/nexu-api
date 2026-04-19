@@ -76,112 +76,62 @@ final class TransactionController extends Controller
     }
 
     /**
-     * Batch-resolve admin names for a page of transactions.
-     * Uses transaction type (not reference_type) so it works regardless of
-     * whether reference_type was stored. Falls back to metadata['admin_id']
-     * for older records that predate reference_id population.
+     * Batch-resolve admin names for a page of transactions without N+1.
      *
      * @param  Collection<int, Transaction> $transactions
      * @return array<string, string|null>  keyed by transaction id
      */
     private function resolveAdminNames(Collection $transactions): array
     {
-        $result = [];
+        $result       = [];
+        $yieldRefs    = [];   // txId => yield_log_id
+        $withdrawRefs = [];   // txId => withdrawal_request_id
+        $adjustAdmins = [];   // txId => admin_id
 
-        // ── yield → YieldLog.applied_by ──────────────────────────────────────
-        $yieldTxs = $transactions->where('type', 'yield');
-
-        if ($yieldTxs->isNotEmpty()) {
-            // Primary: have reference_id pointing to yield_log
-            $withRef = $yieldTxs->whereNotNull('reference_id');
-            if ($withRef->isNotEmpty()) {
-                $yieldLogIds = $withRef->pluck('reference_id', 'id');
-                $yieldLogs = YieldLog::with('appliedBy:id,name')
-                    ->whereIn('id', $yieldLogIds->values())
-                    ->get()
-                    ->keyBy('id');
-                foreach ($yieldLogIds as $txId => $logId) {
-                    $result[$txId] = $yieldLogs->get($logId)?->appliedBy?->name;
-                }
-            }
-
-            // Fallback: no reference_id — match via user_id + amount + date
-            $withoutRef = $yieldTxs->whereNull('reference_id');
-            if ($withoutRef->isNotEmpty()) {
-                foreach ($withoutRef as $tx) {
-                    if (isset($result[$tx->id])) {
-                        continue;
-                    }
-                    $adminId = $tx->metadata['admin_id'] ?? null;
-                    if ($adminId) {
-                        $result[$tx->id] = Admin::find($adminId)?->name;
-                        continue;
-                    }
-                    $log = \App\Models\YieldLogUser::with('yieldLog.appliedBy:id,name')
-                        ->where('user_id', $tx->user_id)
-                        ->whereDate('created_at', $tx->created_at->toDateString())
-                        ->first();
-                    $result[$tx->id] = $log?->yieldLog?->appliedBy?->name;
+        foreach ($transactions as $tx) {
+            if ($tx->type === 'yield' && $tx->reference_id !== null) {
+                $yieldRefs[(string) $tx->id] = (string) $tx->reference_id;
+            } elseif ($tx->type === 'withdrawal' && $tx->reference_id !== null) {
+                $withdrawRefs[(string) $tx->id] = (string) $tx->reference_id;
+            } elseif ($tx->type === 'admin_adjustment') {
+                $adminId = is_array($tx->metadata) ? ($tx->metadata['admin_id'] ?? null) : null;
+                if ($adminId !== null) {
+                    $adjustAdmins[(string) $tx->id] = (string) $adminId;
                 }
             }
         }
 
-        // ── withdrawal → WithdrawalRequest.reviewer ──────────────────────────
-        $withdrawalTxs = $transactions->where('type', 'withdrawal');
+        // ── yield → YieldLog → appliedBy ────────────────────────────────────
+        if (!empty($yieldRefs)) {
+            $logs = YieldLog::with('appliedBy:id,name')
+                ->whereIn('id', array_values($yieldRefs))
+                ->get()
+                ->keyBy('id');
 
-        if ($withdrawalTxs->isNotEmpty()) {
-            // Primary: have reference_id pointing to withdrawal_request
-            $withRef = $withdrawalTxs->whereNotNull('reference_id');
-            if ($withRef->isNotEmpty()) {
-                $requestIds = $withRef->pluck('reference_id', 'id');
-                $requests = WithdrawalRequest::with('reviewer:id,name')
-                    ->whereIn('id', $requestIds->values())
-                    ->get()
-                    ->keyBy('id');
-                foreach ($requestIds as $txId => $requestId) {
-                    $result[$txId] = $requests->get($requestId)?->reviewer?->name;
-                }
-            }
-
-            // Fallback: no reference_id — match via user_id + amount
-            $withoutRef = $withdrawalTxs->whereNull('reference_id');
-            if ($withoutRef->isNotEmpty()) {
-                foreach ($withoutRef as $tx) {
-                    if (isset($result[$tx->id])) {
-                        continue;
-                    }
-                    $adminId = $tx->metadata['admin_id'] ?? null;
-                    if ($adminId) {
-                        $result[$tx->id] = Admin::find($adminId)?->name;
-                        continue;
-                    }
-                    $req = WithdrawalRequest::with('reviewer:id,name')
-                        ->where('user_id', $tx->user_id)
-                        ->where('amount', $tx->amount)
-                        ->whereNotNull('reviewed_by')
-                        ->latest('reviewed_at')
-                        ->first();
-                    $result[$tx->id] = $req?->reviewer?->name;
-                }
+            foreach ($yieldRefs as $txId => $logId) {
+                $result[$txId] = $logs->get($logId)?->appliedBy?->name;
             }
         }
 
-        // ── admin_adjustment → metadata['admin_id'] ──────────────────────────
-        $adjustments = $transactions->where('type', 'admin_adjustment');
+        // ── withdrawal → WithdrawalRequest → reviewer ────────────────────────
+        if (!empty($withdrawRefs)) {
+            $requests = WithdrawalRequest::with('reviewer:id,name')
+                ->whereIn('id', array_values($withdrawRefs))
+                ->get()
+                ->keyBy('id');
 
-        if ($adjustments->isNotEmpty()) {
-            $adminIds = $adjustments
-                ->map(fn($tx) => $tx->metadata['admin_id'] ?? null)
-                ->filter()
-                ->unique()
-                ->values();
+            foreach ($withdrawRefs as $txId => $requestId) {
+                $result[$txId] = $requests->get($requestId)?->reviewer?->name;
+            }
+        }
 
-            if ($adminIds->isNotEmpty()) {
-                $admins = Admin::whereIn('id', $adminIds)->pluck('name', 'id');
-                foreach ($adjustments as $tx) {
-                    $adminId = $tx->metadata['admin_id'] ?? null;
-                    $result[$tx->id] = $adminId ? $admins->get($adminId) : null;
-                }
+        // ── admin_adjustment → Admin ─────────────────────────────────────────
+        if (!empty($adjustAdmins)) {
+            $admins = Admin::whereIn('id', array_unique(array_values($adjustAdmins)))
+                ->pluck('name', 'id');
+
+            foreach ($adjustAdmins as $txId => $adminId) {
+                $result[$txId] = $admins->get($adminId);
             }
         }
 
