@@ -31,8 +31,13 @@ final class TeamMember extends Model
 
     public function getPhotoUrlAttribute(): ?string
     {
-        return $this->photo_path
-            ? Storage::disk('public')->url($this->photo_path)
-            : null;
+        if (! $this->photo_path) {
+            return null;
+        }
+
+        $url = Storage::disk('public')->url($this->photo_path);
+
+        // Normalize double slashes that occur when APP_URL has a trailing slash
+        return preg_replace('#([^:])//+#', '$1/', $url);
     }
 }
