@@ -126,4 +126,16 @@ final class Transaction extends Model
     {
         return $this->hasMany(ElitePoint::class);
     }
+
+    /** @return BelongsTo<YieldLog, $this> */
+    public function yieldLog(): BelongsTo
+    {
+        return $this->belongsTo(YieldLog::class, 'reference_id');
+    }
+
+    /** @return BelongsTo<WithdrawalRequest, $this> */
+    public function withdrawalRequest(): BelongsTo
+    {
+        return $this->belongsTo(WithdrawalRequest::class, 'reference_id');
+    }
 }

@@ -92,6 +92,14 @@ final class TransactionResource extends Resource
                 TextColumn::make('admin_actor')
                     ->label('Admin')
                     ->state(function (Transaction $record): string {
+                        // Yield: applied_by on the YieldLog (eager loaded)
+                        if ($record->type === 'yield') {
+                            return $record->yieldLog?->appliedBy?->name ?? '—';
+                        }
+                        // Withdrawal: reviewer on the WithdrawalRequest (eager loaded)
+                        if ($record->type === 'withdrawal') {
+                            return $record->withdrawalRequest?->reviewer?->name ?? '—';
+                        }
                         // Admin adjustment: metadata.admin_id
                         if ($record->type === 'admin_adjustment') {
                             $adminId = data_get($record->metadata, 'admin_id');
@@ -99,7 +107,7 @@ final class TransactionResource extends Resource
                                 return Admin::find($adminId)?->name ?? "ID {$adminId}";
                             }
                         }
-                        // Manually confirmed deposit: metadata.confirmed_by OR external_tx_id (manual-{uuid}-{ts})
+                        // Manually confirmed deposit
                         if ($record->type === 'deposit') {
                             $adminId = data_get($record->metadata, 'confirmed_by');
                             if (! $adminId && str_starts_with((string) $record->external_tx_id, 'manual-')) {
@@ -216,7 +224,11 @@ final class TransactionResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['user:id,name,email,status']);
+            ->with([
+                'user:id,name,email,status',
+                'yieldLog.appliedBy:id,name',
+                'withdrawalRequest.reviewer:id,name',
+            ]);
     }
 
     public static function canCreate(): bool
