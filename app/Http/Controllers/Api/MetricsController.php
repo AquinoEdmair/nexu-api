@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Transaction;
 use App\Models\Wallet;
 use App\Utils\Mask;
 use App\Services\GoldService;
@@ -27,11 +28,13 @@ final class MetricsController extends Controller
     {
         $metrics = Cache::remember('metrics:global_data', self::TTL_GLOBAL, function () {
             return [
-                'total_investment' => (float) Wallet::sum('balance_in_operation'),
-                'active_investors' => (int) Wallet::where('balance_in_operation', '>', 0)->count(),
-                'volume_24h'       => (float) \App\Models\DepositInvoice::where('status', 'completed')
+                'total_investment' => (float) Wallet::sum('balance_total'),
+                'active_investors' => (int) Wallet::where('balance_total', '>', 0)->count(),
+                'volume_24h'       => (float) \App\Models\Transaction::where('status', 'confirmed')
                     ->where('created_at', '>=', now()->subDay())
-                    ->sum('amount_received'),
+                    ->whereIn('type', ['deposit', 'yield', 'admin_adjustment'])
+                    ->where('net_amount', '>', 0)
+                    ->sum('net_amount'),
             ];
         });
 

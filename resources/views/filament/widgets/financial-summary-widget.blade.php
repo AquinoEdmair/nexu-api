@@ -40,6 +40,13 @@
             </div>
 
             <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Ajustes manuales (admin)</p>
+                <p class="mt-1 text-xl font-bold {{ $summary->totalAdminAdjustments >= 0 ? 'text-gray-900 dark:text-gray-100' : 'text-danger-600' }}">
+                    ${{ number_format($summary->totalAdminAdjustments, 2) }}
+                </p>
+            </div>
+
+            <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
                 <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Usuarios con balance</p>
                 <p class="mt-1 text-xl font-bold text-gray-900 dark:text-gray-100">
                     {{ number_format($summary->usersWithBalance) }}

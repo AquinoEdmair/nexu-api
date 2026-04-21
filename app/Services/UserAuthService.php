@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\UserRegisteredWithReferral;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\Referral;
@@ -106,6 +107,13 @@ final class UserAuthService
 
         // Fires Laravel's built-in listener that calls sendEmailVerificationNotification()
         event(new Registered($user));
+
+        if ($user->referred_by !== null) {
+            $referrer = User::find($user->referred_by);
+            if ($referrer !== null) {
+                event(new UserRegisteredWithReferral($referrer, $user));
+            }
+        }
 
         $token = $user->createToken('api')->plainTextToken;
 

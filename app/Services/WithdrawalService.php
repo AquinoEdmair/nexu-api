@@ -7,6 +7,7 @@ namespace App\Services;
 use App\DTOs\CreateWithdrawalDTO;
 use App\Events\WithdrawalApproved;
 use App\Events\WithdrawalRejected;
+use App\Events\WithdrawalRequested;
 use App\Exceptions\InsufficientBalanceException;
 use App\Exceptions\InvalidStatusTransitionException;
 use App\Models\Admin;
@@ -86,6 +87,8 @@ final class WithdrawalService
         });
 
         $user->notify(new WithdrawalCreatedNotification($result));
+
+        event(new WithdrawalRequested($result, $user));
 
         return $result;
     }

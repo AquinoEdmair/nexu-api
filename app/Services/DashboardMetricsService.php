@@ -75,7 +75,7 @@ final class DashboardMetricsService
      */
     public function getFinancialSummary(): FinancialSummaryDTO
     {
-        $zero = new FinancialSummaryDTO(0.0, 0.0, 0.0, 0.0, 0.0, 0);
+        $zero = new FinancialSummaryDTO(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0);
 
         return $this->cached('financial_summary', self::TTL_CHART, function (): FinancialSummaryDTO {
             $sums = Transaction::where('status', 'confirmed')
@@ -84,7 +84,8 @@ final class DashboardMetricsService
                     SUM(CASE WHEN type = 'withdrawal'           THEN ABS(net_amount)       ELSE 0 END) AS total_withdrawn,
                     SUM(CASE WHEN type = 'yield'                THEN net_amount            ELSE 0 END) AS total_yield,
                     SUM(CASE WHEN type = 'commission'           THEN net_amount            ELSE 0 END) AS total_commissions,
-                    SUM(CASE WHEN type = 'referral_commission'  THEN net_amount            ELSE 0 END) AS total_referral_commissions
+                    SUM(CASE WHEN type = 'referral_commission'  THEN net_amount            ELSE 0 END) AS total_referral_commissions,
+                    SUM(CASE WHEN type = 'admin_adjustment'     THEN net_amount            ELSE 0 END) AS total_admin_adjustments
                 ")
                 ->first();
 
@@ -96,6 +97,7 @@ final class DashboardMetricsService
                 totalYieldApplied:        (float) ($sums?->total_yield ?? 0),
                 totalCommissions:         (float) ($sums?->total_commissions ?? 0),
                 totalReferralCommissions: (float) ($sums?->total_referral_commissions ?? 0),
+                totalAdminAdjustments:    (float) ($sums?->total_admin_adjustments ?? 0),
                 usersWithBalance:         $usersWithBalance,
             );
         }, $zero);

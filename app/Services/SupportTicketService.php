@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\TicketCreated;
 use App\Models\Admin;
 use App\Models\SupportTicket;
 use App\Models\SupportTicketMessage;
@@ -40,6 +41,8 @@ final class SupportTicketService
         });
 
         $user->notify(new TicketCreatedNotification($ticket));
+
+        event(new TicketCreated($ticket, $user));
 
         return $ticket;
     }

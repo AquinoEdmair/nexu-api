@@ -6,19 +6,27 @@ namespace App\Providers;
 
 use App\Events\CommissionConfigUpdated;
 use App\Events\DepositConfirmed;
+use App\Events\TicketCreated;
 use App\Events\UserCreatedByAdmin;
+use App\Events\UserRegisteredWithReferral;
 use App\Events\UserStatusChanged;
 use App\Events\WithdrawalApproved;
 use App\Events\WithdrawalRejected;
+use App\Events\WithdrawalRequested;
 use App\Events\YieldApplied;
+use App\Listeners\AwardPointsOnYield;
 use App\Listeners\LogCommissionConfigChange;
+use App\Listeners\NotifyAdminOnDeposit;
+use App\Listeners\NotifyAdminOnNewUser;
+use App\Listeners\NotifyAdminOnTicketCreated;
+use App\Listeners\NotifyAdminOnWithdrawalRequested;
 use App\Listeners\NotifyAdminOnYieldCompleted;
+use App\Listeners\NotifyReferrerOnNewSignup;
 use App\Listeners\NotifyUserOnDeposit;
 use App\Listeners\NotifyUserOnStatusChange;
 use App\Listeners\NotifyUserWithdrawalApproved;
 use App\Listeners\NotifyUserWithdrawalRejected;
 use App\Listeners\NotifyUsersOnYieldApplied;
-use App\Listeners\AwardPointsOnYield;
 use App\Listeners\ProcessReferralOnDeposit;
 use App\Listeners\SendWelcomeEmailToNewUser;
 use App\Models\Admin;
@@ -68,6 +76,11 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(CommissionConfigUpdated::class, LogCommissionConfigChange::class);
         Event::listen(DepositConfirmed::class, NotifyUserOnDeposit::class);
         Event::listen(DepositConfirmed::class, ProcessReferralOnDeposit::class);
+        Event::listen(DepositConfirmed::class, NotifyAdminOnDeposit::class);
         Event::listen(YieldApplied::class, AwardPointsOnYield::class);
+        Event::listen(UserRegisteredWithReferral::class, NotifyReferrerOnNewSignup::class);
+        Event::listen(WithdrawalRequested::class, NotifyAdminOnWithdrawalRequested::class);
+        Event::listen(TicketCreated::class, NotifyAdminOnTicketCreated::class);
+        Event::listen(\Illuminate\Auth\Events\Registered::class, NotifyAdminOnNewUser::class);
     }
 }

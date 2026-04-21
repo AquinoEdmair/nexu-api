@@ -12,6 +12,7 @@ final class FinancialSummaryDTO
         public readonly float $totalYieldApplied,
         public readonly float $totalCommissions,
         public readonly float $totalReferralCommissions,
+        public readonly float $totalAdminAdjustments,
         public readonly int   $usersWithBalance,
     ) {}
 }
