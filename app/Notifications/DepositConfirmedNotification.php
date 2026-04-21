@@ -17,10 +17,9 @@ final class DepositConfirmedNotification extends Notification
         private readonly Transaction $transaction,
     ) {}
 
-    /** @return array<string> */
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        return ['database'];
     }
 
     public function toMail(object $notifiable): MailMessage

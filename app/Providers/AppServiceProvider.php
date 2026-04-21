@@ -88,4 +88,9 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(TicketCreated::class, NotifyAdminOnTicketCreated::class);
         Event::listen(\Illuminate\Auth\Events\Registered::class, NotifyAdminOnNewUser::class);
     }
+
+    public function shouldDiscoverEvents(): bool
+    {
+        return false;
+    }
 }
