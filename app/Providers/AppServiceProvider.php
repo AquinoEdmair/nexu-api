@@ -29,6 +29,8 @@ use App\Listeners\NotifyUserWithdrawalRejected;
 use App\Listeners\NotifyUsersOnYieldApplied;
 use App\Listeners\ProcessReferralOnDeposit;
 use App\Listeners\SendWelcomeEmailToNewUser;
+use App\Events\DepositInitiated;
+use App\Listeners\NotifyAdminOnDepositInitiated;
 use App\Models\Admin;
 use App\Models\CommissionConfig;
 use App\Models\Transaction;
@@ -48,7 +50,9 @@ use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    public function register(): void {}
+    public function register(): void
+    {
+    }
 
     public function boot(): void
     {
@@ -57,7 +61,7 @@ class AppServiceProvider extends ServiceProvider
         }
 
         ResetPassword::createUrlUsing(function (User $user, string $token) {
-            return config('app.frontend_url').'/reset-password?token='.$token.'&email='.$user->email;
+            return config('app.frontend_url') . '/reset-password?token=' . $token . '&email=' . $user->email;
         });
 
         Gate::policy(Admin::class, AdminPolicy::class);
@@ -67,7 +71,21 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(WithdrawalRequest::class, WithdrawalRequestPolicy::class);
         Gate::policy(CommissionConfig::class, CommissionConfigPolicy::class);
 
+        Event::listen(DepositInitiated::class, NotifyAdminOnDepositInitiated::class);
         Event::listen(UserCreatedByAdmin::class, SendWelcomeEmailToNewUser::class);
+        Event::listen(UserStatusChanged::class, NotifyUserOnStatusChange::class);
+        Event::listen(YieldApplied::class, NotifyUsersOnYieldApplied::class);
+        Event::listen(YieldApplied::class, NotifyAdminOnYieldCompleted::class);
+        Event::listen(WithdrawalApproved::class, NotifyUserWithdrawalApproved::class);
+        Event::listen(WithdrawalRejected::class, NotifyUserWithdrawalRejected::class);
+        Event::listen(CommissionConfigUpdated::class, LogCommissionConfigChange::class);
+        Event::listen(DepositConfirmed::class, NotifyUserOnDeposit::class);
+        Event::listen(DepositConfirmed::class, ProcessReferralOnDeposit::class);
+        Event::listen(DepositConfirmed::class, NotifyAdminOnDeposit::class);
+        Event::listen(YieldApplied::class, AwardPointsOnYield::class);
+        Event::listen(UserRegisteredWithReferral::class, NotifyReferrerOnNewSignup::class);
+        Event::listen(WithdrawalRequested::class, NotifyAdminOnWithdrawalRequested::class);
+        Event::listen(TicketCreated::class, NotifyAdminOnTicketCreated::class);
         Event::listen(\Illuminate\Auth\Events\Registered::class, NotifyAdminOnNewUser::class);
     }
 }
