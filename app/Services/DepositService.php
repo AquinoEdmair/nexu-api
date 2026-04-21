@@ -207,19 +207,27 @@ final class DepositService
 
         // 4. Fire events and record ledger entry outside transaction
         if ($result !== null) {
-            $user = User::findOrFail($result['userId']);
-            DepositConfirmed::dispatch($user, $result['transaction'], $result['netAmount'], $result['currency']);
+            try {
+                $user = User::findOrFail($result['userId']);
+                DepositConfirmed::dispatch($user, $result['transaction'], $result['netAmount'], $result['currency']);
 
-            // Record commission to admin ledger (only if fee > 0)
-            if (bccomp((string)$result['feeAmount'], '0', 8) > 0) {
-                $this->commissionService->recordToLedger(
-                    sourceType:  'deposit',
-                    sourceId:    $result['transaction']->id,
-                    userId:      $result['userId'],
-                    amount:      (float) $result['feeAmount'],
-                    rate:        $result['commissionRate'],
-                    description: "Comisión de depósito — {$result['currency']}",
-                );
+                // Record commission to admin ledger (only if fee > 0)
+                if (bccomp((string)$result['feeAmount'], '0', 8) > 0) {
+                    $this->commissionService->recordToLedger(
+                        sourceType:  'deposit',
+                        sourceId:    $result['transaction']->id,
+                        userId:      $result['userId'],
+                        amount:      (float) $result['feeAmount'],
+                        rate:        $result['commissionRate'],
+                        description: "Comisión de depósito — {$result['currency']}",
+                    );
+                }
+            } catch (\Throwable $e) {
+                // Log the error but don't stop the process — the deposit is already saved in DB
+                \Illuminate\Support\Facades\Log::error('DepositService: Notification or ledger failed after confirmation', [
+                    'userId' => $result['userId'],
+                    'error'  => $e->getMessage()
+                ]);
             }
         }
     }
