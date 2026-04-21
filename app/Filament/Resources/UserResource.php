@@ -140,12 +140,14 @@ class UserResource extends Resource
                     TextEntry::make('wallet.balance_in_operation')
                         ->label('En operación')
                         ->numeric(decimalPlaces: 2)
-                        ->prefix('$'),
+                        ->prefix('$')
+                        ->placeholder('—'),
 
                     TextEntry::make('wallet.balance_total')
                         ->label('Balance total')
                         ->numeric(decimalPlaces: 2)
                         ->prefix('$')
+                        ->placeholder('—')
                         ->weight(\Filament\Support\Enums\FontWeight::Bold),
                 ])
                 ->columns(2),
@@ -196,7 +198,7 @@ class UserResource extends Resource
                     TextEntry::make('blocked_at')
                         ->label('Fecha de bloqueo')
                         ->dateTime('d/m/Y H:i')
-                        ->default('—'),
+                        ->placeholder('—'),
                 ])
                 ->columns(2)
                 ->visible(fn(User $record): bool => $record->status === 'blocked'),

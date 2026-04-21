@@ -70,7 +70,7 @@ final class DepositInvoiceResource extends Resource
                         ->label('Monto USD recibido')
                         ->numeric(decimalPlaces: 2)
                         ->prefix('$')
-                        ->default('—'),
+                        ->placeholder('—'),
                 ])
                 ->columns(3),
 
@@ -114,7 +114,7 @@ final class DepositInvoiceResource extends Resource
                     TextEntry::make('completed_at')
                         ->label('Completado')
                         ->dateTime('d/m/Y H:i')
-                        ->default('—'),
+                        ->placeholder('—'),
 
                     TextEntry::make('created_at')
                         ->label('Creado')
