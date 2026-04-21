@@ -87,6 +87,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(WithdrawalRequested::class, NotifyAdminOnWithdrawalRequested::class);
         Event::listen(TicketCreated::class, NotifyAdminOnTicketCreated::class);
         Event::listen(\Illuminate\Auth\Events\Registered::class, NotifyAdminOnNewUser::class);
+        Event::listen(\App\Events\DepositCancelled::class, \App\Listeners\NotifyUserOnDepositCancelled::class);
     }
 
     public function shouldDiscoverEvents(): bool

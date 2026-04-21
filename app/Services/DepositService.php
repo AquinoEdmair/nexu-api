@@ -318,13 +318,15 @@ final class DepositService
 
             $invoice->update([
                 'status'       => 'failed',
+                'tx_hash'      => 'manual-cancel-' . $adminId . '-' . time(),
                 'completed_at' => now(),
             ]);
         });
 
         // Notify user about cancellation outside of transaction
         try {
-            $invoice->load('user')->user->notify(new \App\Notifications\DepositCancelledNotification($invoice, $reason));
+            $user = $invoice->load('user')->user;
+            \App\Events\DepositCancelled::dispatch($user, $invoice, $reason);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('DepositService: Notification failed after cancellation', [
                 'invoiceId' => $invoice->invoice_id,

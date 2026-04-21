@@ -167,12 +167,12 @@ final class DepositInvoiceResource extends Resource
                     ->tooltip(fn(DepositInvoice $r): string => $r->address),
 
                 TextColumn::make('confirmed_by')
-                    ->label('Confirmado por')
+                    ->label('Gestionado por')
                     ->state(function (DepositInvoice $r): string {
                         if (! str_starts_with((string) $r->tx_hash, 'manual-')) {
                             return 'Automático';
                         }
-                        preg_match('/^manual-(.+)-(\d+)$/', $r->tx_hash, $m);
+                        preg_match('/^manual-(?:cancel-)?(.+)-(\d+)$/', $r->tx_hash, $m);
                         $adminId = $m[1] ?? null;
                         return $adminId ? (Admin::find($adminId)?->name ?? "ID {$adminId}") : 'Manual';
                     })
