@@ -51,24 +51,44 @@ final class GoldService
     /** @return array{price: float, change_24h: float} */
     private function fetchCurrentPrice(): array
     {
-        // Primary: metals.live — free, no key required
+        // Primary: Yahoo Finance — free, no key, real-time XAU/USD
+        try {
+            $response = Http::timeout(5)
+                ->withHeaders(['User-Agent' => 'Mozilla/5.0'])
+                ->get('https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD%3DX');
+
+            if ($response->ok()) {
+                $meta  = $response->json('chart.result.0.meta', []);
+                $price = (float) ($meta['regularMarketPrice'] ?? 0);
+
+                if ($price > 1000) {
+                    $prev      = (float) ($meta['chartPreviousClose'] ?? $price);
+                    $change24h = $prev > 0 ? round((($price - $prev) / $prev) * 100, 2) : 0.0;
+                    return ['price' => round($price, 2), 'change_24h' => $change24h];
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning("GoldService Yahoo Finance failed: " . $e->getMessage());
+        }
+
+        // Secondary: metals.live — free, no key
         try {
             $response = Http::timeout(5)->get('https://api.metals.live/v1/spot');
 
             if ($response->ok()) {
-                $items = $response->json();
+                $items     = $response->json();
                 $goldEntry = collect($items)->first(fn ($item) => isset($item['gold']));
+                $price     = (float) ($goldEntry['gold'] ?? 0);
 
-                if ($goldEntry && ($goldEntry['gold'] ?? 0) > 0) {
-                    $price = round((float) $goldEntry['gold'], 2);
-                    return ['price' => $price, 'change_24h' => 0.0];
+                if ($price > 1000) {
+                    return ['price' => round($price, 2), 'change_24h' => 0.0];
                 }
             }
         } catch (\Throwable $e) {
             Log::warning("GoldService metals.live failed: " . $e->getMessage());
         }
 
-        // Secondary: goldapi.io — requires API key
+        // Tertiary: goldapi.io — requires API key
         $apiKey = config('services.goldapi.key');
 
         if (!blank($apiKey)) {
@@ -81,7 +101,7 @@ final class GoldService
                 if ($response->ok()) {
                     $data = $response->json();
                     return [
-                        'price'      => (float) ($data['price'] ?? 3300.00),
+                        'price'      => (float) ($data['price'] ?? 4700.00),
                         'change_24h' => round((float) ($data['chp'] ?? 0.0), 2),
                     ];
                 }
@@ -92,8 +112,8 @@ final class GoldService
             }
         }
 
-        // Final fallback with current approximate price
-        return ['price' => 3320.00, 'change_24h' => 0.0];
+        // Final fallback
+        return ['price' => 4700.00, 'change_24h' => 0.0];
     }
 
     /**
