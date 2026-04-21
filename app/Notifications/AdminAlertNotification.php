@@ -46,13 +46,18 @@ final class AdminAlertNotification extends Notification
     }
 
     /** @return array<string, mixed> */
+    /** @return array<string, mixed> */
     public function toDatabase(object $notifiable): array
     {
-        return [
-            'type' => $this->type,
-            'title' => $this->title,
-            'body' => $this->body,
-            'url' => $this->actionUrl,
-        ];
+        return \Filament\Notifications\Notification::make()
+            ->title($this->title)
+            ->body($this->body)
+            ->status('info')
+            ->actions([
+                \Filament\Notifications\Actions\Action::make('view')
+                    ->label($this->actionLabel)
+                    ->url($this->actionUrl),
+            ])
+            ->getDatabaseMessage();
     }
 }
