@@ -25,6 +25,8 @@ final class GoldService
         });
 
         // Historial con cache más largo por range
+        // Incluye el precio actual en la cache key para invalidar cuando cambia significativamente
+        $priceSlot = (int) ($currentPrice['price'] / 50); // invalida si el precio cambia >$50
         $ttl = match($range) {
             '1h'    => 60,
             '1d'    => 300,
@@ -33,7 +35,7 @@ final class GoldService
             default => 3600,
         };
 
-        $history = Cache::remember("gold:history:{$range}", $ttl, function () use ($range, $currentPrice) {
+        $history = Cache::remember("gold:history:{$range}:{$priceSlot}", $ttl, function () use ($range, $currentPrice) {
             return $this->buildHistory($range, $currentPrice['price']);
         });
 
@@ -49,33 +51,49 @@ final class GoldService
     /** @return array{price: float, change_24h: float} */
     private function fetchCurrentPrice(): array
     {
+        // Primary: metals.live — free, no key required
+        try {
+            $response = Http::timeout(5)->get('https://api.metals.live/v1/spot');
+
+            if ($response->ok()) {
+                $items = $response->json();
+                $goldEntry = collect($items)->first(fn ($item) => isset($item['gold']));
+
+                if ($goldEntry && ($goldEntry['gold'] ?? 0) > 0) {
+                    $price = round((float) $goldEntry['gold'], 2);
+                    return ['price' => $price, 'change_24h' => 0.0];
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning("GoldService metals.live failed: " . $e->getMessage());
+        }
+
+        // Secondary: goldapi.io — requires API key
         $apiKey = config('services.goldapi.key');
 
-        if (blank($apiKey)) {
-            return ['price' => 2380.50, 'change_24h' => 1.25];
-        }
+        if (!blank($apiKey)) {
+            try {
+                $response = Http::timeout(5)->withHeaders([
+                    'x-access-token' => $apiKey,
+                    'Content-Type'   => 'application/json',
+                ])->get('https://www.goldapi.io/api/XAU/USD');
 
-        try {
-            $response = Http::withHeaders([
-                'x-access-token' => $apiKey,
-                'Content-Type'   => 'application/json',
-            ])->get('https://www.goldapi.io/api/XAU/USD');
+                if ($response->ok()) {
+                    $data = $response->json();
+                    return [
+                        'price'      => (float) ($data['price'] ?? 3300.00),
+                        'change_24h' => round((float) ($data['chp'] ?? 0.0), 2),
+                    ];
+                }
 
-            if ($response->failed()) {
                 Log::error("GoldAPI Error: " . $response->body());
-                return ['price' => 2380.50, 'change_24h' => 1.25];
+            } catch (\Throwable $e) {
+                Log::error("GoldService goldapi.io failed: " . $e->getMessage());
             }
-
-            $data = $response->json();
-            return [
-                'price'      => (float) ($data['price'] ?? 2380.50),
-                'change_24h' => round((float) ($data['chp'] ?? 1.25), 2),
-            ];
-
-        } catch (\Throwable $e) {
-            Log::error("GoldService fetchCurrentPrice: " . $e->getMessage());
-            return ['price' => 2380.50, 'change_24h' => 1.25];
         }
+
+        // Final fallback with current approximate price
+        return ['price' => 3320.00, 'change_24h' => 0.0];
     }
 
     /**
