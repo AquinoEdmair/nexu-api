@@ -25,7 +25,7 @@ final class AdminAlertNotification extends Notification
     /** @return array<string> */
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        return ['database'];
     }
 
     public function toMail(object $notifiable): MailMessage
