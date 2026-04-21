@@ -67,6 +67,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(WithdrawalRequest::class, WithdrawalRequestPolicy::class);
         Gate::policy(CommissionConfig::class, CommissionConfigPolicy::class);
 
+        Event::listen(\App\Events\DepositInitiated::class, \App\Listeners\NotifyAdminOnDepositInitiated::class);
         Event::listen(UserCreatedByAdmin::class, SendWelcomeEmailToNewUser::class);
         Event::listen(UserStatusChanged::class, NotifyUserOnStatusChange::class);
         Event::listen(YieldApplied::class, NotifyUsersOnYieldApplied::class);

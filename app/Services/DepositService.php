@@ -73,6 +73,8 @@ final class DepositService
 
         $invoice->update(['transaction_id' => $pendingTx->id]);
 
+        \App\Events\DepositInitiated::dispatch($user, $invoice, $amount, $currency);
+
         return $invoice;
     }
 
