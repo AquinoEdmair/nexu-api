@@ -20,12 +20,13 @@ final class AdminAlertNotification extends Notification
         private readonly string $body,
         private readonly string $actionUrl,
         private readonly string $actionLabel = 'Ver en el panel',
-    ) {}
+    ) {
+    }
 
     /** @return array<string> */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['mail', 'database'];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -48,10 +49,10 @@ final class AdminAlertNotification extends Notification
     public function toDatabase(object $notifiable): array
     {
         return [
-            'type'  => $this->type,
+            'type' => $this->type,
             'title' => $this->title,
-            'body'  => $this->body,
-            'url'   => $this->actionUrl,
+            'body' => $this->body,
+            'url' => $this->actionUrl,
         ];
     }
 }

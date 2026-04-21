@@ -7,12 +7,9 @@ namespace App\Listeners;
 use App\Events\TicketCreated;
 use App\Models\Admin;
 use App\Notifications\AdminAlertNotification;
-use Illuminate\Contracts\Queue\ShouldQueue;
 
-final class NotifyAdminOnTicketCreated implements ShouldQueue
+final class NotifyAdminOnTicketCreated
 {
-    public string $queue = 'default';
-
     public function handle(TicketCreated $event): void
     {
         $userName = $event->user->name;

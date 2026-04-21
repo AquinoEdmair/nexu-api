@@ -7,12 +7,9 @@ namespace App\Listeners;
 use App\Events\DepositConfirmed;
 use App\Models\Admin;
 use App\Notifications\AdminAlertNotification;
-use Illuminate\Contracts\Queue\ShouldQueue;
 
-final class NotifyAdminOnDeposit implements ShouldQueue
+final class NotifyAdminOnDeposit
 {
-    public string $queue = 'default';
-
     public function handle(DepositConfirmed $event): void
     {
         $amount   = number_format((float) $event->netAmount, 2);

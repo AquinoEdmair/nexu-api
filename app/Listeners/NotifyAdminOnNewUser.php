@@ -7,12 +7,9 @@ namespace App\Listeners;
 use App\Models\Admin;
 use App\Notifications\AdminAlertNotification;
 use Illuminate\Auth\Events\Registered;
-use Illuminate\Contracts\Queue\ShouldQueue;
 
-final class NotifyAdminOnNewUser implements ShouldQueue
+final class NotifyAdminOnNewUser
 {
-    public string $queue = 'default';
-
     public function handle(Registered $event): void
     {
         $user = $event->user;
