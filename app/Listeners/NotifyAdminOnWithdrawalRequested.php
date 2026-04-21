@@ -7,11 +7,9 @@ namespace App\Listeners;
 use App\Events\WithdrawalRequested;
 use App\Models\Admin;
 use App\Notifications\AdminAlertNotification;
-use Illuminate\Contracts\Queue\ShouldQueue;
 
-final class NotifyAdminOnWithdrawalRequested implements ShouldQueue
+final class NotifyAdminOnWithdrawalRequested
 {
-    public string $queue = 'default';
 
     public function handle(WithdrawalRequested $event): void
     {

@@ -7,11 +7,9 @@ namespace App\Listeners;
 use App\Events\DepositInitiated;
 use App\Models\Admin;
 use App\Notifications\AdminAlertNotification;
-use Illuminate\Contracts\Queue\ShouldQueue;
 
-final class NotifyAdminOnDepositInitiated implements ShouldQueue
+final class NotifyAdminOnDepositInitiated
 {
-    public string $queue = 'default';
 
     public function handle(DepositInitiated $event): void
     {
