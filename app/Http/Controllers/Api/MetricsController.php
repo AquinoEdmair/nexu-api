@@ -127,6 +127,11 @@ final class MetricsController extends Controller
 
         $phone = preg_replace('/[^0-9+]/', '', $phone);
 
+        // Si no empieza con '+', se lo agregamos para que coincida con nuestros prefijos
+        if (!str_starts_with($phone, '+')) {
+            $phone = '+' . $phone;
+        }
+
         return match (true) {
             str_starts_with($phone, '+52') => '🇲🇽',
             str_starts_with($phone, '+1')  => '🇺🇸',
