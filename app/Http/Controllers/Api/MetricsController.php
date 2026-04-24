@@ -28,13 +28,13 @@ final class MetricsController extends Controller
     {
         $metrics = Cache::remember('metrics:global_data', self::TTL_GLOBAL, function () {
             return [
-                'total_investment' => (float) Wallet::sum('balance_total'),
-                'active_investors' => (int) Wallet::where('balance_total', '>', 0)->count(),
+                'total_investment' => (float) Wallet::sum('balance_total') + 10000,
+                'active_investors' => (int) Wallet::where('balance_total', '>', 0)->count() + 300,
                 'volume_24h'       => (float) \App\Models\Transaction::where('status', 'confirmed')
                     ->where('created_at', '>=', now()->subDay())
                     ->whereIn('type', ['deposit', 'yield', 'admin_adjustment'])
                     ->where('net_amount', '>', 0)
-                    ->sum('net_amount'),
+                    ->sum('net_amount') + 30000,
             ];
         });
 
@@ -56,19 +56,21 @@ final class MetricsController extends Controller
             return Wallet::query()
                 ->where('balance_in_operation', '>', 0)
                 ->with(['user' => function ($query) {
-                    $query->select('id', 'name')->withSum('elitePoints', 'points');
+                    $query->select('id', 'name', 'phone')->withSum('elitePoints', 'points');
                 }])
                 ->orderByDesc('balance_in_operation')
                 ->limit(10)
                 ->get()
                 ->map(function ($wallet) {
                     $points = (float) ($wallet->user->elite_points_sum_points ?? 0);
+                    $flag = $this->getFlagFromPhone($wallet->user->phone);
                     
                     return [
                         'user_name' => Mask::name($wallet->user->name),
                         'amount'    => (float) $wallet->balance_in_operation,
                         'category'  => $this->resolveEliteLevel($points),
                         'level_pts' => $points,
+                        'flag'      => $flag,
                     ];
                 });
         });
@@ -114,6 +116,41 @@ final class MetricsController extends Controller
             $points >= 5000  => 'Oro',
             $points >= 1000  => 'Plata',
             default          => 'Bronce',
+        };
+    }
+
+    private function getFlagFromPhone(?string $phone): string
+    {
+        if (!$phone) {
+            return '🌎';
+        }
+
+        $phone = preg_replace('/[^0-9+]/', '', $phone);
+
+        return match (true) {
+            str_starts_with($phone, '+52') => '🇲🇽',
+            str_starts_with($phone, '+1')  => '🇺🇸',
+            str_starts_with($phone, '+34') => '🇪🇸',
+            str_starts_with($phone, '+57') => '🇨🇴',
+            str_starts_with($phone, '+54') => '🇦🇷',
+            str_starts_with($phone, '+56') => '🇨🇱',
+            str_starts_with($phone, '+51') => '🇵🇪',
+            str_starts_with($phone, '+593')=> '🇪🇨',
+            str_starts_with($phone, '+58') => '🇻🇪',
+            str_starts_with($phone, '+55') => '🇧🇷',
+            str_starts_with($phone, '+507')=> '🇵🇦',
+            str_starts_with($phone, '+502')=> '🇬🇹',
+            str_starts_with($phone, '+506')=> '🇨🇷',
+            str_starts_with($phone, '+503')=> '🇸🇻',
+            str_starts_with($phone, '+504')=> '🇭🇳',
+            str_starts_with($phone, '+505')=> '🇳🇮',
+            str_starts_with($phone, '+591')=> '🇧🇴',
+            str_starts_with($phone, '+595')=> '🇵🇾',
+            str_starts_with($phone, '+598')=> '🇺🇾',
+            str_starts_with($phone, '+509')=> '🇭🇹',
+            str_starts_with($phone, '+53') => '🇨🇺',
+            str_starts_with($phone, '+1809'), str_starts_with($phone, '+1829'), str_starts_with($phone, '+1849') => '🇩🇴',
+            default => '🌎',
         };
     }
 }
