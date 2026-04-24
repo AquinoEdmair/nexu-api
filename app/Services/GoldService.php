@@ -54,8 +54,9 @@ final class GoldService
         // Primary: Yahoo Finance — free, no key, real-time XAU/USD
         try {
             $response = Http::timeout(5)
+                ->withoutVerifying()
                 ->withHeaders(['User-Agent' => 'Mozilla/5.0'])
-                ->get('https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD%3DX');
+                ->get('https://query1.finance.yahoo.com/v8/finance/chart/GC=F');
 
             if ($response->ok()) {
                 $meta  = $response->json('chart.result.0.meta', []);
@@ -73,7 +74,7 @@ final class GoldService
 
         // Secondary: metals.live — free, no key
         try {
-            $response = Http::timeout(5)->get('https://api.metals.live/v1/spot');
+            $response = Http::timeout(5)->withoutVerifying()->get('https://api.metals.live/v1/spot');
 
             if ($response->ok()) {
                 $items     = $response->json();
@@ -93,7 +94,7 @@ final class GoldService
 
         if (!blank($apiKey)) {
             try {
-                $response = Http::timeout(5)->withHeaders([
+                $response = Http::timeout(5)->withoutVerifying()->withHeaders([
                     'x-access-token' => $apiKey,
                     'Content-Type'   => 'application/json',
                 ])->get('https://www.goldapi.io/api/XAU/USD');
