@@ -75,6 +75,7 @@ final class WithdrawalService
                 'commission_rate'     => $commissionRate,
                 'currency'            => $dto->currency,
                 'destination_address' => $dto->destinationAddress,
+                'qr_image_path'       => $dto->qrImagePath,
                 'status'              => 'pending',
             ]);
 

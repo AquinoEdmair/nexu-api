@@ -23,6 +23,7 @@ final class WithdrawalRequest extends Model
         'commission_rate',
         'currency',
         'destination_address',
+        'qr_image_path',
         'status',
         'reviewed_by',
         'reviewed_at',

@@ -139,6 +139,15 @@ final class ReferralService
      */
     public function awardPointsForDeposit(Transaction $depositTx): ?ElitePoint
     {
+        $exists = ElitePoint::where('user_id', $depositTx->user_id)
+            ->where('transaction_id', $depositTx->id)
+            ->where('description', "deposit:{$depositTx->id}")
+            ->exists();
+
+        if ($exists) {
+            return null;
+        }
+
         $user = User::with('eliteTier')->findOrFail($depositTx->user_id);
 
         $multiplier = $user->eliteTier !== null
@@ -166,6 +175,15 @@ final class ReferralService
      */
     public function awardPointsForYield(Transaction $yieldTx, string $yieldLogId): ?ElitePoint
     {
+        $exists = ElitePoint::where('user_id', $yieldTx->user_id)
+            ->where('transaction_id', $yieldTx->id)
+            ->where('description', "yield:{$yieldLogId}")
+            ->exists();
+
+        if ($exists) {
+            return null;
+        }
+
         $user = User::with('eliteTier')->findOrFail($yieldTx->user_id);
 
         $multiplier = $user->eliteTier !== null

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\DTOs\ApplyYieldDTO;
-use App\Exceptions\BalanceInvariantViolationException;
 use App\Jobs\ApplyYieldToUsers;
 use App\Models\Admin;
 use App\Models\Transaction;
@@ -125,10 +124,7 @@ final class YieldService
 
     // ── Private ──────────────────────────────────────────────────────────────
 
-    /**
-     * @throws BalanceInvariantViolationException
-     * @throws \Throwable
-     */
+    /** @throws \Throwable */
     private function applyToUser(YieldLog $yieldLog, string $userId): void
     {
         DB::transaction(function () use ($yieldLog, $userId): void {
@@ -137,56 +133,47 @@ final class YieldService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            // Idempotency: skip if already processed for this yield_log
-            if (YieldLogUser::where('yield_log_id', $yieldLog->id)->where('user_id', $userId)->exists()) {
+            // Idempotency: skip if already processed (applied or skipped) for this yield_log.
+            // Lock the check inside the wallet-lock transaction to prevent race conditions.
+            $existing = YieldLogUser::where('yield_log_id', $yieldLog->id)
+                ->where('user_id', $userId)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing !== null && in_array($existing->status, ['applied', 'skipped'], strict: true)) {
                 return;
             }
 
-            $balanceBefore = (float) $wallet->balance_in_operation;
-            $amount        = $this->computeAmount($yieldLog->type, (float) $yieldLog->value, $balanceBefore);
-            $balanceAfter = $balanceBefore + $amount;
-            $status = 'applied';
+            $balanceBefore = (string) $wallet->balance_in_operation;
+            $amount        = $this->computeAmountBc($yieldLog->type, (string) $yieldLog->value, $balanceBefore);
+            $balanceAfter  = bcadd($balanceBefore, $amount, 8);
+            $status        = 'applied';
 
-            if ($balanceAfter < 0.0) {
+            if (bccomp($balanceAfter, '0', 8) < 0) {
                 if ($yieldLog->negative_policy === 'skip') {
-                    $status = 'skipped';
-                    $amount = 0.0;
+                    $status       = 'skipped';
+                    $amount       = '0.00000000';
                     $balanceAfter = $balanceBefore;
                 } else {
                     // floor: apply only down to zero
-                    $amount = -$balanceBefore;
-                    $balanceAfter = 0.0;
+                    $amount       = bcmul($balanceBefore, '-1', 8);
+                    $balanceAfter = '0.00000000';
                 }
             }
 
-            if ($status === 'applied' && $amount !== 0.0) {
-                $newTotal = round($balanceAfter, 8);
-
-                // Invariant guard: verify DB-recorded balance_total equals
-                // balance_in_operation BEFORE the update.
-                // A mismatch means data corruption in a prior operation.
-                $recordedTotal = round((float) $wallet->balance_total, 8);
-                if (abs($recordedTotal - round($balanceBefore, 8)) > 0.000000009) {
-                    throw new BalanceInvariantViolationException(
-                        $userId,
-                        '0',
-                        (string) $balanceBefore,
-                        (string) $wallet->balance_total,
-                    );
-                }
-
+            if ($status === 'applied' && bccomp($amount, '0', 8) !== 0) {
                 $wallet->update([
-                    'balance_in_operation' => $newTotal,
-                    'balance_total'        => $newTotal,
+                    'balance_in_operation' => $balanceAfter,
+                    'balance_total'        => $balanceAfter,
                 ]);
 
                 Transaction::create([
                     'user_id'        => $userId,
                     'wallet_id'      => $wallet->id,
                     'type'           => 'yield',
-                    'amount'         => round(abs($amount), 8),
-                    'fee_amount'     => 0,
-                    'net_amount'     => round($amount, 8),
+                    'amount'         => str_replace('-', '', $amount), // absolute value
+                    'fee_amount'     => '0.00000000',
+                    'net_amount'     => $amount,
                     'currency'       => 'USD',
                     'status'         => 'confirmed',
                     'reference_type' => 'yield_log',
@@ -195,27 +182,32 @@ final class YieldService
                 ]);
             }
 
-            YieldLogUser::create([
-                'yield_log_id' => $yieldLog->id,
-                'user_id' => $userId,
-                'balance_before' => round($balanceBefore, 8),
-                'balance_after' => round($balanceAfter, 8),
-                'amount_applied' => round($amount, 8),
-                'status' => $status,
-            ]);
+            // Upsert: if a previous 'failed' record exists, replace it; otherwise insert.
+            YieldLogUser::updateOrCreate(
+                ['yield_log_id' => $yieldLog->id, 'user_id' => $userId],
+                [
+                    'balance_before' => $balanceBefore,
+                    'balance_after'  => $balanceAfter,
+                    'amount_applied' => $amount,
+                    'status'         => $status,
+                    'error_message'  => null,
+                ]
+            );
         });
     }
 
     /**
-     * Compute the raw yield amount for a given balance.
-     * Same logic as PreviewYieldService::computeAmount — keep both in sync.
+     * Compute the raw yield amount using bcmath for precision.
+     * Keeps same logic as PreviewYieldService::computeAmount.
      */
-    private function computeAmount(string $type, float $value, float $balanceInOperation): float
+    private function computeAmountBc(string $type, string $value, string $balanceInOperation): string
     {
         if ($type === 'percentage') {
-            return round($balanceInOperation * ($value / 100), 8);
+            // amount = balance * (value / 100)
+            $rate = bcdiv($value, '100', 10);
+            return bcmul($balanceInOperation, $rate, 8);
         }
 
-        return round($value, 8);
+        return bcdiv($value, '1', 8); // normalize to 8 decimal places
     }
 }

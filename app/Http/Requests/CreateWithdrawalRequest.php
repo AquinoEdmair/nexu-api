@@ -22,6 +22,7 @@ final class CreateWithdrawalRequest extends FormRequest
             'amount'              => ['required', 'numeric', 'gt:0', 'max:999999999'],
             'currency'            => ['required', 'string', Rule::exists('withdrawal_currencies', 'symbol')->where('is_active', true)],
             'destination_address' => ['required', 'string', 'min:20', 'max:255'],
+            'qr_image'            => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ];
     }
 }

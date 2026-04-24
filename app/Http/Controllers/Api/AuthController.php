@@ -25,7 +25,9 @@ final class AuthController extends Controller
      */
     public function login(LoginRequest $request): JsonResponse
     {
-        $result = $this->authService->login($request->validated());
+        $result = $this->authService->login(
+            $request->safe()->except(['captcha_token'])
+        );
 
         return response()->json([
             'data' => [
@@ -38,7 +40,9 @@ final class AuthController extends Controller
 
     public function register(RegisterRequest $request): JsonResponse
     {
-        $result = $this->authService->register($request->validated());
+        $result = $this->authService->register(
+            $request->safe()->except(['captcha_token'])
+        );
 
         return response()->json([
             'data' => [

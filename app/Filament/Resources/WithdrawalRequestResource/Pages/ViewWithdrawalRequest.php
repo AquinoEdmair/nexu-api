@@ -10,6 +10,7 @@ use App\Services\WithdrawalService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Infolist;
@@ -131,6 +132,13 @@ final class ViewWithdrawalRequest extends ViewRecord
                             ->copyable()
                             ->fontFamily('mono')
                             ->columnSpanFull(),
+
+                        ImageEntry::make('qr_image_path')
+                            ->label('QR del usuario')
+                            ->disk('public')
+                            ->height(220)
+                            ->columnSpanFull()
+                            ->visible(fn (WithdrawalRequest $record): bool => $record->qr_image_path !== null),
                     ]),
 
                 Section::make('Estado')

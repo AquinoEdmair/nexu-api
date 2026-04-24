@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\BalanceSnapshot;
+use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Support\Carbon;
@@ -17,25 +18,36 @@ final class BalanceService
     /**
      * Returns the current balance for a user.
      *
-     * @return array{balance_in_operation: string, balance_total: string, currency: string}
+     * @return array{balance_in_operation: string, balance_total: string, currency: string, member_since: string, first_deposit_amount: string|null}
      */
     public function getBalance(User $user): array
     {
         $wallet = $user->wallet;
 
+        $firstDepositAmount = Transaction::where('user_id', $user->id)
+            ->where('type', 'deposit')
+            ->where('status', 'confirmed')
+            ->orderBy('created_at')
+            ->value('amount');
+
+        $base = [
+            'member_since'         => $user->created_at->toIso8601String(),
+            'first_deposit_amount' => $firstDepositAmount,
+        ];
+
         if ($wallet === null) {
-            return [
+            return array_merge($base, [
                 'balance_in_operation' => '0.00000000',
                 'balance_total'        => '0.00000000',
                 'currency'             => self::DEFAULT_CURRENCY,
-            ];
+            ]);
         }
 
-        return [
+        return array_merge($base, [
             'balance_in_operation' => $wallet->balance_in_operation,
             'balance_total'        => $wallet->balance_total,
             'currency'             => self::DEFAULT_CURRENCY,
-        ];
+        ]);
     }
 
     /**

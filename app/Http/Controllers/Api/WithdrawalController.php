@@ -16,6 +16,7 @@ use App\Services\WithdrawalService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 final class WithdrawalController extends Controller
 {
@@ -52,10 +53,16 @@ final class WithdrawalController extends Controller
         /** @var User $user */
         $user = $request->user();
 
+        $qrImagePath = null;
+        if ($request->hasFile('qr_image')) {
+            $qrImagePath = $request->file('qr_image')->store('withdrawal-qr', 'public');
+        }
+
         $dto = new CreateWithdrawalDTO(
             amount:             (float) $request->validated('amount'),
             currency:           $request->validated('currency'),
             destinationAddress: $request->validated('destination_address'),
+            qrImagePath:        $qrImagePath,
         );
 
         try {
@@ -154,6 +161,7 @@ final class WithdrawalController extends Controller
             'reviewed_at'         => $w->reviewed_at?->toIso8601String(),
             'rejection_reason'    => $w->rejection_reason,
             'tx_hash'             => $w->tx_hash,
+            'qr_image_url'        => $w->qr_image_path ? Storage::disk('public')->url($w->qr_image_path) : null,
             'created_at'          => $w->created_at->toIso8601String(),
             'updated_at'          => $w->updated_at->toIso8601String(),
         ];

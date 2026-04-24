@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BalanceController;
+use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\CryptoCurrencyController;
 use App\Http\Controllers\Api\DepositController;
 use App\Http\Controllers\Api\EliteTierController;
@@ -108,6 +109,9 @@ Route::middleware(['auth:api', 'user.active'])->group(function (): void {
 
     // Yields
     Route::get('/yields', [YieldController::class, 'index']);
+
+    // Export
+    Route::get('/export', [ExportController::class, 'index'])->middleware('throttle:20,1');
 
     // Investments (available → in_operation)
     Route::post('/investments', [InvestmentController::class, 'store'])
