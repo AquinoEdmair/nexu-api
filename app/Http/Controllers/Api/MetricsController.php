@@ -26,7 +26,7 @@ final class MetricsController extends Controller
      */
     public function global(): JsonResponse
     {
-        $metrics = Cache::remember('metrics:global_data', self::TTL_GLOBAL, function () {
+        $metrics = Cache::remember('metrics:global_data_v2', self::TTL_GLOBAL, function () {
             return [
                 'total_investment' => (float) Wallet::sum('balance_total') + 10000,
                 'active_investors' => (int) Wallet::where('balance_total', '>', 0)->count() + 300,
@@ -52,7 +52,7 @@ final class MetricsController extends Controller
      */
     public function ranking(): JsonResponse
     {
-        $ranking = Cache::remember('metrics:user_ranking', self::TTL_RANKING, function () {
+        $ranking = Cache::remember('metrics:user_ranking_v2', self::TTL_RANKING, function () {
             return Wallet::query()
                 ->where('balance_in_operation', '>', 0)
                 ->with(['user' => function ($query) {
