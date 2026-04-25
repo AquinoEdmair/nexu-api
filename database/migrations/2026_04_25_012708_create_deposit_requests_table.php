@@ -29,7 +29,8 @@ return new class extends Migration
                   ->default('pending');
 
             $table->timestamp('client_confirmed_at')->nullable();
-            $table->foreignId('reviewed_by')->nullable()->constrained('admins')->nullOnDelete();
+            $table->uuid('reviewed_by')->nullable();
+            $table->foreign('reviewed_by')->references('id')->on('admins')->nullOnDelete();
             $table->timestamp('reviewed_at')->nullable();
             $table->text('rejection_reason')->nullable();
             $table->foreignUuid('transaction_id')->nullable()->constrained('transactions')->nullOnDelete();
