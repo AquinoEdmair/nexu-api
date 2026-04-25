@@ -13,7 +13,6 @@ use App\Http\Controllers\Api\InvestmentController;
 use App\Http\Controllers\Api\MetricsController;
 use App\Http\Controllers\Api\ReferralController;
 use App\Http\Controllers\Api\TransactionController;
-use App\Http\Controllers\Api\WebhookController;
 use App\Http\Controllers\Api\WithdrawalController;
 use App\Http\Controllers\Api\InAppNotificationController;
 use App\Http\Controllers\Api\SupportTicketController;
@@ -68,9 +67,8 @@ Route::prefix('metrics')->group(function (): void {
     Route::get('/news', [MetricsController::class, 'news']);
 });
 
-// ── Webhook (HMAC-verified, no user auth) ────────────────────────────────
-Route::post('/webhook/deposit', [WebhookController::class, 'deposit'])
-    ->middleware('webhook.verify');
+// ── Deposit currencies (public) ──────────────────────────────────────────
+Route::get('/deposits/currencies', [DepositController::class, 'currencies']);
 
 // ── Authenticated ────────────────────────────────────────────────────────
 Route::middleware(['auth:api', 'user.active'])->group(function (): void {
@@ -89,12 +87,10 @@ Route::middleware(['auth:api', 'user.active'])->group(function (): void {
     Route::get('/balance/history', [BalanceController::class, 'history']);
 
     // Deposits
-    Route::get('/deposits/commission-rate', [DepositController::class, 'commissionRate']);
-    Route::post('/deposits/initiate', [DepositController::class, 'initiate'])
-        ->middleware('throttle:10,1');
+    Route::post('/deposits', [DepositController::class, 'store'])->middleware('throttle:10,1');
     Route::get('/deposits', [DepositController::class, 'index']);
-    Route::get('/deposits/pending', [DepositController::class, 'pending']);
-    Route::get('/deposits/invoices', [DepositController::class, 'invoices']);
+    Route::get('/deposits/{id}', [DepositController::class, 'show']);
+    Route::post('/deposits/{id}/confirm', [DepositController::class, 'confirm'])->middleware('throttle:20,1');
 
     // Withdrawals
     Route::get('/withdrawals/commission-rate', [WithdrawalController::class, 'commissionRate']);

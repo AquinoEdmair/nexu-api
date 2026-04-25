@@ -12,9 +12,15 @@ use App\Models\Wallet;
 use App\Notifications\BalanceAdjustedNotification;
 use App\Notifications\PointsAdjustedNotification;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use App\Services\ReferralService;
 
 final class AdminAdjustmentService
 {
+    public function __construct(
+        private readonly ReferralService $referralService,
+    ) {}
+
     /**
      * Apply a signed delta to the user's balance_in_operation.
      *
@@ -76,6 +82,20 @@ final class AdminAdjustmentService
         });
 
         $user->notify(new BalanceAdjustedNotification($transaction));
+
+        // Award Elite points only for positive (credit) adjustments.
+        // Negative adjustments (deductions) do not remove points.
+        if (bccomp($delta, '0', 8) > 0) {
+            try {
+                $this->referralService->awardPointsForAdminAdjustment($transaction);
+            } catch (\Throwable $e) {
+                Log::error('AdminAdjustmentService: failed to award elite points', [
+                    'transaction_id' => $transaction->id,
+                    'user_id'        => $user->id,
+                    'error'          => $e->getMessage(),
+                ]);
+            }
+        }
 
         return $transaction;
     }

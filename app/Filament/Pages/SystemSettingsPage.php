@@ -18,6 +18,7 @@ class SystemSettingsPage extends Page
     protected static ?int    $navigationSort  = 99;
 
     public string $adminNotificationEmail = '';
+    public string $minimumDepositAmount   = '0';
 
     public static function canAccess(): bool
     {
@@ -27,18 +28,26 @@ class SystemSettingsPage extends Page
     public function mount(): void
     {
         $this->adminNotificationEmail = SystemSetting::get('admin_notification_email');
+        $this->minimumDepositAmount   = SystemSetting::get('minimum_deposit_amount', '0');
     }
 
     public function save(): void
     {
         $this->validate([
             'adminNotificationEmail' => ['nullable', 'email', 'max:255'],
+            'minimumDepositAmount'   => ['required', 'numeric', 'min:0', 'max:999999'],
         ]);
 
         SystemSetting::set(
             key:         'admin_notification_email',
             value:       $this->adminNotificationEmail ?: null,
             description: 'Email adicional que recibe BCC de todas las alertas del panel admin.',
+        );
+
+        SystemSetting::set(
+            key:         'minimum_deposit_amount',
+            value:       $this->minimumDepositAmount,
+            description: 'Monto mínimo en USD que acepta la plataforma por depósito.',
         );
 
         Notification::make()

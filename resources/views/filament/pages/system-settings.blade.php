@@ -8,7 +8,7 @@
                 Útil para un buzón compartido del equipo (ej. ops@nexu.com). Dejar vacío para desactivar.
             </x-slot>
 
-            <form wire:submit.prevent="save" class="space-y-4">
+            <form wire:submit.prevent="save" class="space-y-6">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Email de notificaciones
@@ -21,6 +21,29 @@
                         />
                     </x-filament::input.wrapper>
                     @error('adminNotificationEmail')
+                        <p class="text-sm text-red-500 mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <hr class="border-gray-200 dark:border-white/10" />
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Depósito mínimo (USD)
+                    </label>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                        Monto mínimo que un usuario puede depositar. Usa <strong>0</strong> para desactivar el candado.
+                    </p>
+                    <x-filament::input.wrapper prefix="$">
+                        <x-filament::input
+                            type="number"
+                            wire:model="minimumDepositAmount"
+                            min="0"
+                            step="0.01"
+                            placeholder="0.00"
+                        />
+                    </x-filament::input.wrapper>
+                    @error('minimumDepositAmount')
                         <p class="text-sm text-red-500 mt-1">{{ $message }}</p>
                     @enderror
                 </div>

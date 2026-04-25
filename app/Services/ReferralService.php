@@ -167,6 +167,43 @@ final class ReferralService
         return $point;
     }
 
+    // ── Points for admin adjustment ──────────────────────────────────────────
+
+    /**
+     * Award Elite points for a positive admin balance adjustment.
+     * Same multiplier logic as deposits. Idempotent via transaction_id.
+     * Does NOT apply referral commission — adjustments are not real deposits.
+     */
+    public function awardPointsForAdminAdjustment(Transaction $tx): ?ElitePoint
+    {
+        $exists = ElitePoint::where('user_id', $tx->user_id)
+            ->where('transaction_id', $tx->id)
+            ->where('description', "admin_adjustment:{$tx->id}")
+            ->exists();
+
+        if ($exists) {
+            return null;
+        }
+
+        $user = User::with('eliteTier')->findOrFail($tx->user_id);
+
+        $multiplier = $user->eliteTier !== null
+            ? (string) $user->eliteTier->multiplier
+            : '1.00';
+
+        $point = $this->creditPoints(
+            userId:        $user->id,
+            amount:        (string) $tx->net_amount,
+            multiplier:    $multiplier,
+            transactionId: $tx->id,
+            description:   "admin_adjustment:{$tx->id}",
+        );
+
+        RecalculateEliteTierJob::dispatch($user->id);
+
+        return $point;
+    }
+
     // ── Points for yield ─────────────────────────────────────────────────────
 
     /**

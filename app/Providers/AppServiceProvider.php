@@ -29,8 +29,6 @@ use App\Listeners\NotifyUserWithdrawalRejected;
 use App\Listeners\NotifyUsersOnYieldApplied;
 use App\Listeners\ProcessReferralOnDeposit;
 use App\Listeners\SendWelcomeEmailToNewUser;
-use App\Events\DepositInitiated;
-use App\Listeners\NotifyAdminOnDepositInitiated;
 use App\Models\Admin;
 use App\Models\CommissionConfig;
 use App\Models\Transaction;
@@ -71,7 +69,6 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(WithdrawalRequest::class, WithdrawalRequestPolicy::class);
         Gate::policy(CommissionConfig::class, CommissionConfigPolicy::class);
 
-        Event::listen(DepositInitiated::class, NotifyAdminOnDepositInitiated::class);
         Event::listen(UserCreatedByAdmin::class, SendWelcomeEmailToNewUser::class);
         Event::listen(UserStatusChanged::class, NotifyUserOnStatusChange::class);
         Event::listen(YieldApplied::class, NotifyUsersOnYieldApplied::class);
