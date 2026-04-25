@@ -37,7 +37,7 @@ final class LoginRequest extends FormRequest
                 /** @var TurnstileService $turnstile */
                 $turnstile = app(TurnstileService::class);
 
-                if (!$turnstile->verify($this->string('captcha_token'), $this->ip())) {
+                if (!$turnstile->verify((string) $this->input('captcha_token', ''), $this->ip())) {
                     $validator->errors()->add('captcha_token', 'Verificación de seguridad fallida. Recarga la página e intenta de nuevo.');
                 }
             },

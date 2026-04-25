@@ -28,7 +28,7 @@ final class MetricsController extends Controller
     {
         $metrics = Cache::remember('metrics:global_data_v2', self::TTL_GLOBAL, function () {
             return [
-                'total_investment' => (float) Wallet::sum('balance_total') + 10000,
+                'total_investment' => (float) Wallet::sum('balance_total') + 2000000,
                 'active_investors' => (int) Wallet::where('balance_total', '>', 0)->count() + 300,
                 'volume_24h'       => (float) \App\Models\Transaction::where('status', 'confirmed')
                     ->where('created_at', '>=', now()->subDay())
