@@ -108,6 +108,7 @@ final class DemoFinancialSeeder extends Seeder
             Referral::create([
                 'referrer_id' => $referrerId,
                 'referred_id' => $user->id,
+                'commission_rate' => '0.0000',
                 'total_earned' => '0.00000000',
             ]);
         }
