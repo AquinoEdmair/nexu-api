@@ -19,7 +19,8 @@ final class MetricsController extends Controller
 
     public function __construct(
         private readonly GoldService $goldService
-    ) {}
+    ) {
+    }
 
     /**
      * Obtiene las métricas globales de la plataforma (Datos Reales).
@@ -28,9 +29,9 @@ final class MetricsController extends Controller
     {
         $metrics = Cache::remember('metrics:global_data_v2', self::TTL_GLOBAL, function () {
             return [
-                'total_investment' => (float) Wallet::sum('balance_total') + 2000000,
+                'total_investment' => (float) Wallet::sum('balance_total') + 20000000,
                 'active_investors' => (int) Wallet::where('balance_total', '>', 0)->count() + 300,
-                'volume_24h'       => (float) \App\Models\Transaction::where('status', 'confirmed')
+                'volume_24h' => (float) \App\Models\Transaction::where('status', 'confirmed')
                     ->where('created_at', '>=', now()->subDay())
                     ->whereIn('type', ['deposit', 'yield', 'admin_adjustment'])
                     ->where('net_amount', '>', 0)
@@ -41,9 +42,9 @@ final class MetricsController extends Controller
         return response()->json([
             'total_investment' => $metrics['total_investment'],
             'active_investors' => $metrics['active_investors'],
-            'volume_24h'       => $metrics['volume_24h'],
-            'currency'         => 'USD',
-            'updated_at'       => now()->toIso8601String(),
+            'volume_24h' => $metrics['volume_24h'],
+            'currency' => 'USD',
+            'updated_at' => now()->toIso8601String(),
         ]);
     }
 
@@ -55,28 +56,60 @@ final class MetricsController extends Controller
         $ranking = Cache::remember('metrics:user_ranking_v2', self::TTL_RANKING, function () {
             return Wallet::query()
                 ->where('balance_in_operation', '>', 0)
-                ->with(['user' => function ($query) {
-                    $query->select('id', 'name', 'phone')->withSum('elitePoints', 'points');
-                }])
+                ->with([
+                    'user' => function ($query) {
+                        $query->select('id', 'name', 'phone')->withSum('elitePoints', 'points');
+                    }
+                ])
                 ->orderByDesc('balance_in_operation')
                 ->limit(10)
                 ->get()
                 ->map(function ($wallet) {
                     $points = (float) ($wallet->user->elite_points_sum_points ?? 0);
                     $flag = $this->getFlagFromPhone($wallet->user->phone);
-                    
+
                     return [
                         'user_name' => Mask::name($wallet->user->name),
-                        'amount'    => (float) $wallet->balance_in_operation,
-                        'category'  => $this->resolveEliteLevel($points),
+                        'amount' => (float) $wallet->balance_in_operation,
+                        'category' => $this->resolveEliteLevel($points),
                         'level_pts' => $points,
-                        'flag'      => $flag,
+                        'flag' => $flag,
                     ];
                 });
         });
 
         return response()->json([
-            'data'       => $ranking,
+            'data' => $ranking,
+            'updated_at' => now()->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * Obtiene el feed de actividad reciente (Depósitos, Retiros, Rendimientos).
+     */
+    public function activity(): JsonResponse
+    {
+        $activity = Cache::remember('metrics:recent_activity', 30, function () {
+            return Transaction::query()
+                ->where('status', 'confirmed')
+                ->whereIn('type', ['deposit', 'withdrawal', 'yield'])
+                ->with('user:id,name')
+                ->latest()
+                ->limit(10)
+                ->get()
+                ->map(function ($tx) {
+                    return [
+                        'type' => $tx->type,
+                        'amount' => (float) abs((float) $tx->net_amount),
+                        'currency' => $tx->currency ?? 'USD',
+                        'user' => Mask::name($tx->user->name ?? 'Sistema'),
+                        'time' => $tx->created_at->toIso8601String(),
+                    ];
+                });
+        });
+
+        return response()->json([
+            'data' => $activity,
             'updated_at' => now()->toIso8601String(),
         ]);
     }
@@ -87,7 +120,7 @@ final class MetricsController extends Controller
      */
     public function gold(\Illuminate\Http\Request $request): JsonResponse
     {
-        $range     = in_array($request->query('range'), ['1h', '1d', '1w', '1m'], true)
+        $range = in_array($request->query('range'), ['1h', '1d', '1w', '1m'], true)
             ? $request->query('range')
             : '1w';
 
@@ -104,7 +137,7 @@ final class MetricsController extends Controller
         $news = $this->goldService->getGoldNews();
 
         return response()->json([
-            'data'       => $news,
+            'data' => $news,
             'updated_at' => now()->toIso8601String(),
         ]);
     }
@@ -112,10 +145,10 @@ final class MetricsController extends Controller
     private function resolveEliteLevel(float $points): string
     {
         return match (true) {
-            $points >= 20000 => 'Platino',
-            $points >= 5000  => 'Oro',
-            $points >= 1000  => 'Plata',
-            default          => 'Bronce',
+            $points >= 20000 => 'PLATINUM',
+            $points >= 5000 => 'GOLD',
+            $points >= 1000 => 'SILVER',
+            default => 'BRONZE',
         };
     }
 
@@ -134,25 +167,25 @@ final class MetricsController extends Controller
 
         return match (true) {
             str_starts_with($phone, '+52') => '🇲🇽',
-            str_starts_with($phone, '+1')  => '🇺🇸',
+            str_starts_with($phone, '+1') => '🇺🇸',
             str_starts_with($phone, '+34') => '🇪🇸',
             str_starts_with($phone, '+57') => '🇨🇴',
             str_starts_with($phone, '+54') => '🇦🇷',
             str_starts_with($phone, '+56') => '🇨🇱',
             str_starts_with($phone, '+51') => '🇵🇪',
-            str_starts_with($phone, '+593')=> '🇪🇨',
+            str_starts_with($phone, '+593') => '🇪🇨',
             str_starts_with($phone, '+58') => '🇻🇪',
             str_starts_with($phone, '+55') => '🇧🇷',
-            str_starts_with($phone, '+507')=> '🇵🇦',
-            str_starts_with($phone, '+502')=> '🇬🇹',
-            str_starts_with($phone, '+506')=> '🇨🇷',
-            str_starts_with($phone, '+503')=> '🇸🇻',
-            str_starts_with($phone, '+504')=> '🇭🇳',
-            str_starts_with($phone, '+505')=> '🇳🇮',
-            str_starts_with($phone, '+591')=> '🇧🇴',
-            str_starts_with($phone, '+595')=> '🇵🇾',
-            str_starts_with($phone, '+598')=> '🇺🇾',
-            str_starts_with($phone, '+509')=> '🇭🇹',
+            str_starts_with($phone, '+507') => '🇵🇦',
+            str_starts_with($phone, '+502') => '🇬🇹',
+            str_starts_with($phone, '+506') => '🇨🇷',
+            str_starts_with($phone, '+503') => '🇸🇻',
+            str_starts_with($phone, '+504') => '🇭🇳',
+            str_starts_with($phone, '+505') => '🇳🇮',
+            str_starts_with($phone, '+591') => '🇧🇴',
+            str_starts_with($phone, '+595') => '🇵🇾',
+            str_starts_with($phone, '+598') => '🇺🇾',
+            str_starts_with($phone, '+509') => '🇭🇹',
             str_starts_with($phone, '+53') => '🇨🇺',
             str_starts_with($phone, '+1809'), str_starts_with($phone, '+1829'), str_starts_with($phone, '+1849') => '🇩🇴',
             default => '🌎',

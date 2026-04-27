@@ -55,6 +55,11 @@ final class ElitePointsRelationManager extends RelationManager
                     ->wrap()
                     ->limit(100),
 
+                TextColumn::make('sourceUser.email')
+                    ->label('Referido (Fuente)')
+                    ->placeholder('—')
+                    ->searchable(),
+
                 TextColumn::make('transaction.type')
                     ->label('Transacción origen')
                     ->placeholder('—')

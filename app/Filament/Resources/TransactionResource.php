@@ -130,6 +130,12 @@ final class TransactionResource extends Resource
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
+                SelectFilter::make('user')
+                    ->label('Usuario')
+                    ->relationship('user', 'name')
+                    ->searchable()
+                    ->preload(),
+
                 SelectFilter::make('type')
                     ->label('Tipo')
                     ->options([

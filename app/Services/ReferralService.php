@@ -125,6 +125,7 @@ final class ReferralService
                 multiplier:    (string) $tier->multiplier,
                 transactionId: $commissionTx->id,
                 description:   "referral_commission:{$commissionTx->id}",
+                sourceUserId:  $sourceDeposit->user_id,
             );
 
             return $commissionTx;
@@ -160,6 +161,7 @@ final class ReferralService
             multiplier:    $multiplier,
             transactionId: $depositTx->id,
             description:   "deposit:{$depositTx->id}",
+            sourceUserId:  null,
         );
 
         RecalculateEliteTierJob::dispatch($user->id);
@@ -197,6 +199,7 @@ final class ReferralService
             multiplier:    $multiplier,
             transactionId: $tx->id,
             description:   "admin_adjustment:{$tx->id}",
+            sourceUserId:  null,
         );
 
         RecalculateEliteTierJob::dispatch($user->id);
@@ -233,6 +236,7 @@ final class ReferralService
             multiplier:    $multiplier,
             transactionId: $yieldTx->id,
             description:   "yield:{$yieldLogId}",
+            sourceUserId:  null,
         );
 
         RecalculateEliteTierJob::dispatch($user->id);
@@ -250,17 +254,19 @@ final class ReferralService
     public function getPointsHistory(User $user, int $page = 1, int $perPage = 20): LengthAwarePaginator
     {
         return ElitePoint::where('user_id', $user->id)
+            ->with(['sourceUser:id,email'])
             ->orderByDesc('created_at')
             ->paginate(perPage: $perPage, page: $page)
             ->through(function (ElitePoint $point): array {
                 [$source, $amountUsd] = $this->resolvePointSource($point);
 
                 return [
-                    'id'         => $point->id,
-                    'points'     => number_format((float) $point->points, 2, '.', ''),
-                    'source'     => $source,
-                    'amount_usd' => $amountUsd,
-                    'created_at' => $point->created_at->toIso8601String(),
+                    'id'                 => $point->id,
+                    'points'             => number_format((float) $point->points, 2, '.', ''),
+                    'source'             => $source,
+                    'amount_usd'         => $amountUsd,
+                    'source_user_masked' => $point->sourceUser ? $this->maskEmail($point->sourceUser->email) : null,
+                    'created_at'         => $point->created_at->toIso8601String(),
                 ];
             });
     }
@@ -462,6 +468,7 @@ final class ReferralService
         string  $multiplier,
         ?string $transactionId,
         string  $description,
+        ?string $sourceUserId = null,
     ): ElitePoint {
         $points = bcmul($amount, $multiplier, 2);
 
@@ -470,6 +477,7 @@ final class ReferralService
             'points'         => $points,
             'transaction_id' => $transactionId,
             'description'    => $description,
+            'source_user_id' => $sourceUserId,
         ]);
     }
 

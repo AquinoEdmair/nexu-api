@@ -65,6 +65,7 @@ Route::prefix('metrics')->group(function (): void {
     Route::get('/ranking', [MetricsController::class, 'ranking']);
     Route::get('/gold', [MetricsController::class, 'gold']);
     Route::get('/news', [MetricsController::class, 'news']);
+    Route::get('/activity', [MetricsController::class, 'activity']);
 });
 
 // ── Deposit currencies (public) ──────────────────────────────────────────

@@ -16,6 +16,7 @@ final class ElitePoint extends Model
         'user_id',
         'points',
         'transaction_id',
+        'source_user_id',
         'description',
     ];
 
@@ -32,6 +33,12 @@ final class ElitePoint extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function sourceUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'source_user_id');
     }
 
     /** @return BelongsTo<Transaction, $this> */

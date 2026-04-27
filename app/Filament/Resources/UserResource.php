@@ -6,6 +6,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers;
+use App\Filament\Resources\TransactionResource;
 use App\Models\EliteTier;
 use App\Models\User;
 use App\Services\AdminAdjustmentService;
@@ -281,20 +282,13 @@ class UserResource extends Resource
                     ->label('Transacciones')
                     ->icon('heroicon-o-banknotes')
                     ->color('info')
-                    ->modalHeading(fn (User $record): string => "Transacciones — {$record->name}")
-                    ->modalWidth('7xl')
-                    ->modalContent(function (User $record) {
-                        $transactions = $record->transactions()
-                            ->orderByDesc('created_at')
-                            ->limit(50)
-                            ->get();
-
-                        return view('filament.modals.user-transactions', [
-                            'transactions' => $transactions,
-                        ]);
-                    })
-                    ->modalSubmitAction(false)
-                    ->modalCancelActionLabel('Cerrar'),
+                    ->url(fn (User $record): string => TransactionResource::getUrl('index', [
+                        'tableFilters' => [
+                            'user' => [
+                                'value' => $record->id,
+                            ],
+                        ],
+                    ])),
                 Action::make('assignEliteTier')
                     ->label('Asignar nivel')
                     ->icon('heroicon-o-trophy')
