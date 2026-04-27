@@ -103,8 +103,11 @@ final class TransactionResource extends Resource
                         // Admin adjustment: metadata.admin_id
                         if ($record->type === 'admin_adjustment') {
                             $adminId = data_get($record->metadata, 'admin_id');
-                            if ($adminId) {
+                            if ($adminId && \Illuminate\Support\Str::isUuid($adminId)) {
                                 return Admin::find($adminId)?->name ?? "ID {$adminId}";
+                            }
+                            if ($adminId === 'system') {
+                                return 'Sistema';
                             }
                         }
                         // Manually confirmed deposit
@@ -114,7 +117,7 @@ final class TransactionResource extends Resource
                                 preg_match('/^manual-(.+)-(\d+)$/', $record->external_tx_id, $m);
                                 $adminId = $m[1] ?? null;
                             }
-                            if ($adminId) {
+                            if ($adminId && \Illuminate\Support\Str::isUuid($adminId)) {
                                 return Admin::find($adminId)?->name ?? "ID {$adminId}";
                             }
                         }
