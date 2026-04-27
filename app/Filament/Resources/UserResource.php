@@ -277,6 +277,12 @@ class UserResource extends Resource
             ->actions([
                 ViewAction::make(),
                 EditAction::make(),
+                Action::make('viewTransactions')
+                    ->label('Transacciones')
+                    ->icon('heroicon-o-banknotes')
+                    ->color('info')
+                    ->url(fn (User $record): string => UserResource::getUrl('view', ['record' => $record]) . '#relation-transactions-tab')
+                    ->openUrlInNewTab(false),
                 Action::make('assignEliteTier')
                     ->label('Asignar nivel')
                     ->icon('heroicon-o-trophy')
