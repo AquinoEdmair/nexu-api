@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\DepositRequest;
 use App\Models\Transaction;
 use App\Models\WithdrawalRequest;
 use App\Models\YieldLogUser;
+use App\Services\CommissionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -16,11 +18,15 @@ final class ExportController extends Controller
 {
     private const MAX_RECORDS = 5000;
 
+    public function __construct(
+        private readonly CommissionService $commissionService
+    ) {}
+
     /**
      * Return all operation records for the authenticated user within the given date range.
      *
      * Query params:
-     *   sections    string  Comma-separated: transactions,withdrawals,yields (default: all)
+     *   sections    string  Comma-separated: transactions,withdrawals,yields,deposits (default: all)
      *   date_from   string  ISO date (Y-m-d), optional
      *   date_to     string  ISO date (Y-m-d), optional
      */
@@ -35,7 +41,7 @@ final class ExportController extends Controller
         /** @var \App\Models\User $user */
         $user = $request->user();
 
-        $sections = $this->parseSections($request->input('sections', 'transactions,withdrawals,yields'));
+        $sections = $this->parseSections($request->input('sections', 'transactions,withdrawals,yields,deposits'));
         $from     = $request->filled('date_from') ? Carbon::parse($request->input('date_from'))->startOfDay() : null;
         $to       = $request->filled('date_to')   ? Carbon::parse($request->input('date_to'))->endOfDay()   : null;
 
@@ -53,6 +59,10 @@ final class ExportController extends Controller
             $result['yields'] = $this->fetchYields($user->id, $from, $to);
         }
 
+        if (in_array('deposits', $sections, true)) {
+            $result['deposits'] = $this->fetchDeposits($user->id, $from, $to);
+        }
+
         return response()->json(['data' => $result]);
     }
 
@@ -61,7 +71,7 @@ final class ExportController extends Controller
     /** @return array<string> */
     private function parseSections(string $raw): array
     {
-        $allowed = ['transactions', 'withdrawals', 'yields'];
+        $allowed = ['transactions', 'withdrawals', 'yields', 'deposits'];
         return array_values(array_intersect(
             array_map('trim', explode(',', $raw)),
             $allowed
@@ -137,6 +147,40 @@ final class ExportController extends Controller
             ->toArray();
     }
 
+    /** @return array<array<string, mixed>> */
+    private function fetchDeposits(string $userId, ?Carbon $from, ?Carbon $to): array
+    {
+        $rate = $this->commissionService->getActiveRate('deposit');
+
+        return DepositRequest::where('user_id', $userId)
+            ->when($from, fn ($q) => $q->where('created_at', '>=', $from))
+            ->when($to,   fn ($q) => $q->where('created_at', '<=', $to))
+            ->orderByDesc('created_at')
+            ->limit(self::MAX_RECORDS)
+            ->get()
+            ->map(function (DepositRequest $d) use ($rate) {
+                $amount = (float) $d->amount_expected;
+                $fee    = round($amount * $rate / 100, 8);
+                $net    = round($amount - $fee, 8);
+
+                return [
+                    'Fecha'            => $d->created_at->format('d/m/Y H:i:s'),
+                    'Moneda'           => $d->currency,
+                    'Red'              => $d->network ?? '—',
+                    'Monto esperado'   => $amount,
+                    'FEE INFRAESTRUCTURA' => $fee,
+                    'Monto neto'       => $net,
+                    'Estado'           => $this->translateDepositStatus($d->status),
+                    'Dirección pago'   => $d->address,
+                    'TX Hash'          => $d->tx_hash ?? '—',
+                    'Motivo rechazo'   => $d->rejection_reason ?? '—',
+                    'Confirmado por cliente' => $d->client_confirmed_at?->format('d/m/Y H:i:s') ?? 'No',
+                    'Revisado el'      => $d->reviewed_at?->format('d/m/Y H:i:s') ?? '—',
+                ];
+            })
+            ->toArray();
+    }
+
     private function translateType(string $type): string
     {
         return match ($type) {
@@ -174,6 +218,18 @@ final class ExportController extends Controller
             'completed'  => 'Completado',
             'cancelled'  => 'Cancelado',
             default      => $status,
+        };
+    }
+
+    private function translateDepositStatus(string $status): string
+    {
+        return match ($status) {
+            'pending'          => 'Esperando pago',
+            'client_confirmed' => 'Confirmado por cliente',
+            'completed'        => 'Completado',
+            'cancelled'        => 'Cancelado',
+            'expired'          => 'Expirado',
+            default            => $status,
         };
     }
 }
