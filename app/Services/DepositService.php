@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Events\DepositConfirmed;
+use App\Events\DepositInitiated;
+use App\Events\DepositClientConfirmed;
 use App\Models\Admin;
 use App\Models\DepositAddress;
 use App\Models\DepositCurrency;
@@ -44,7 +46,7 @@ final class DepositService
 
         $currency = $address->currency;
 
-        return DepositRequest::create([
+        $deposit = DepositRequest::create([
             'user_id'            => $user->id,
             'deposit_address_id' => $address->id,
             'currency'           => $currency->symbol,
@@ -54,6 +56,17 @@ final class DepositService
             'amount_expected'    => round($amount, 8),
             'status'             => 'pending',
         ]);
+
+        try {
+            DepositInitiated::dispatch($user, $deposit, $amount, $currency->symbol);
+        } catch (\Throwable $e) {
+            Log::error('DepositService: Failed to dispatch DepositInitiated', [
+                'deposit_id' => $deposit->id,
+                'error'      => $e->getMessage(),
+            ]);
+        }
+
+        return $deposit;
     }
 
     /**
@@ -77,6 +90,15 @@ final class DepositService
             'status'              => 'client_confirmed',
             'client_confirmed_at' => now(),
         ]);
+
+        try {
+            DepositClientConfirmed::dispatch($user, $request);
+        } catch (\Throwable $e) {
+            Log::error('DepositService: Failed to dispatch DepositClientConfirmed', [
+                'deposit_id' => $request->id,
+                'error'      => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

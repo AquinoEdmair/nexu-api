@@ -11,6 +11,7 @@ use App\Models\DepositRequest;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\DepositService;
+use App\Services\CommissionService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ final class DepositController extends Controller
 {
     public function __construct(
         private readonly DepositService $depositService,
+        private readonly CommissionService $commissionService,
     ) {}
 
     public function currencies(): JsonResponse
@@ -34,6 +36,26 @@ final class DepositController extends Controller
                 'network' => $c->network,
             ]),
             'minimum_deposit_amount' => $minimum,
+        ]);
+    }
+
+    public function commissionRate(Request $request): JsonResponse
+    {
+        $rate        = $this->commissionService->getActiveRate('deposit');
+        $amount      = (float) $request->query('amount', 0);
+        
+        $rateDecimal = bcdiv((string) $rate, '100', 10);
+        $divisor     = bcadd('1', $rateDecimal, 10);
+        $netAmount   = bcdiv((string) $amount, $divisor, 8);
+        $feeAmount   = bcsub((string) $amount, $netAmount, 8);
+
+        return response()->json([
+            'data' => [
+                'rate'           => (float) $rate,
+                'net_amount'     => (float) $netAmount,
+                'fee_amount'     => (float) $feeAmount,
+                'amount_charged' => $amount,
+            ],
         ]);
     }
 

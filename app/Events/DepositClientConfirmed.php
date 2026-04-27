@@ -10,14 +10,12 @@ use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-final class DepositInitiated
+final class DepositClientConfirmed
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public function __construct(
         public User           $user,
         public DepositRequest $depositRequest,
-        public float          $amount,
-        public string         $currency
     ) {}
 }

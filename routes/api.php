@@ -87,6 +87,7 @@ Route::middleware(['auth:api', 'user.active'])->group(function (): void {
     Route::get('/balance/history', [BalanceController::class, 'history']);
 
     // Deposits
+    Route::get('/deposits/commission-rate', [DepositController::class, 'commissionRate']);
     Route::post('/deposits', [DepositController::class, 'store'])->middleware('throttle:10,1');
     Route::get('/deposits', [DepositController::class, 'index']);
     Route::get('/deposits/{id}', [DepositController::class, 'show']);

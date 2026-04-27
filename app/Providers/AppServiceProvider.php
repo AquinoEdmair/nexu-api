@@ -69,22 +69,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(WithdrawalRequest::class, WithdrawalRequestPolicy::class);
         Gate::policy(CommissionConfig::class, CommissionConfigPolicy::class);
 
-        Event::listen(UserCreatedByAdmin::class, SendWelcomeEmailToNewUser::class);
-        Event::listen(UserStatusChanged::class, NotifyUserOnStatusChange::class);
-        Event::listen(YieldApplied::class, NotifyUsersOnYieldApplied::class);
-        Event::listen(YieldApplied::class, NotifyAdminOnYieldCompleted::class);
-        Event::listen(WithdrawalApproved::class, NotifyUserWithdrawalApproved::class);
-        Event::listen(WithdrawalRejected::class, NotifyUserWithdrawalRejected::class);
-        Event::listen(CommissionConfigUpdated::class, LogCommissionConfigChange::class);
-        Event::listen(DepositConfirmed::class, NotifyUserOnDeposit::class);
-        Event::listen(DepositConfirmed::class, ProcessReferralOnDeposit::class);
-        Event::listen(DepositConfirmed::class, NotifyAdminOnDeposit::class);
-        Event::listen(YieldApplied::class, AwardPointsOnYield::class);
-        Event::listen(UserRegisteredWithReferral::class, NotifyReferrerOnNewSignup::class);
-        Event::listen(WithdrawalRequested::class, NotifyAdminOnWithdrawalRequested::class);
-        Event::listen(TicketCreated::class, NotifyAdminOnTicketCreated::class);
-        Event::listen(\Illuminate\Auth\Events\Registered::class, NotifyAdminOnNewUser::class);
-        Event::listen(\App\Events\DepositCancelled::class, \App\Listeners\NotifyUserOnDepositCancelled::class);
+
     }
 
     public function shouldDiscoverEvents(): bool

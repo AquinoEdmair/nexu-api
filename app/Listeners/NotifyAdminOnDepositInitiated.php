@@ -16,7 +16,7 @@ final class NotifyAdminOnDepositInitiated
         $amount   = number_format((float) $event->amount, 2);
         $currency = $event->currency;
         $userName = $event->user->name;
-        $url      = route('filament.admin.resources.deposit-invoices.index');
+        $url      = route('filament.admin.resources.deposit-requests.index');
 
         $notification = new AdminAlertNotification(
             type:        'admin_deposit_initiated',
@@ -24,7 +24,7 @@ final class NotifyAdminOnDepositInitiated
             title:       'Nuevo depósito iniciado',
             body:        "{$userName} generó una dirección para depositar \${$amount} {$currency}.",
             actionUrl:   $url,
-            actionLabel: 'Ver facturas',
+            actionLabel: 'Ver solicitudes',
         );
 
         Admin::whereIn('role', ['super_admin', 'manager'])->get()->each->notify($notification);
