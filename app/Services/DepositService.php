@@ -118,9 +118,8 @@ final class DepositService
             $commissionRate = $this->commissionService->getActiveRate('deposit');
             $rateDecimal    = bcdiv((string) $commissionRate, '100', 10);
             $gross          = (string) $depositRequest->amount_expected;
-            $divisor        = bcadd('1', $rateDecimal, 10);
-            $netAmount      = bcdiv($gross, $divisor, 8);
-            $feeAmount      = bcsub($gross, $netAmount, 8);
+            $feeAmount      = bcmul($gross, $rateDecimal, 8);
+            $netAmount      = bcsub($gross, $feeAmount, 8);
 
             /** @var Wallet $wallet */
             $wallet = Wallet::where('user_id', $user->id)->lockForUpdate()->firstOrFail();

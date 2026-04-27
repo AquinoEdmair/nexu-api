@@ -45,9 +45,8 @@ final class DepositController extends Controller
         $amount      = (float) $request->query('amount', 0);
         
         $rateDecimal = bcdiv((string) $rate, '100', 10);
-        $divisor     = bcadd('1', $rateDecimal, 10);
-        $netAmount   = bcdiv((string) $amount, $divisor, 8);
-        $feeAmount   = bcsub((string) $amount, $netAmount, 8);
+        $feeAmount   = bcmul((string) $amount, $rateDecimal, 8);
+        $netAmount   = bcsub((string) $amount, $feeAmount, 8);
 
         return response()->json([
             'data' => [
@@ -86,7 +85,7 @@ final class DepositController extends Controller
         $paginated = $this->depositService->getHistory($user, $request->integer('page', 1), $perPage);
 
         return response()->json([
-            'data' => collect($paginated->items())->map(fn ($d) => $this->format($d->load('reviewer'))),
+            'data' => collect($paginated->items())->map(fn ($d) => $this->format($d->load(['reviewer', 'transaction']))),
             'meta' => [
                 'current_page' => $paginated->currentPage(),
                 'last_page'    => $paginated->lastPage(),
@@ -102,7 +101,7 @@ final class DepositController extends Controller
         $user    = $request->user();
         $deposit = DepositRequest::where('id', $id)->where('user_id', $user->id)->firstOrFail();
 
-        return response()->json(['data' => $this->format($deposit->load('reviewer'))]);
+        return response()->json(['data' => $this->format($deposit->load(['reviewer', 'transaction']))]);
     }
 
     public function confirm(ConfirmDepositRequest $request, string $id): JsonResponse
@@ -119,19 +118,35 @@ final class DepositController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return response()->json(['data' => $this->format($deposit->fresh()->load('reviewer'))]);
+        return response()->json(['data' => $this->format($deposit->fresh()->load(['reviewer', 'transaction']))]);
     }
 
     /** @return array<string, mixed> */
     private function format(DepositRequest $d): array
     {
+        $amount = (float) $d->amount_expected;
+        $rate   = $this->commissionService->getActiveRate('deposit');
+
+        if ($d->transaction) {
+            $feeAmount = (float) $d->transaction->fee_amount;
+            $netAmount = (float) $d->transaction->net_amount;
+            $rateUsed  = (float) ($d->transaction->metadata['commission_rate'] ?? $rate);
+        } else {
+            $feeAmount = round($amount * $rate / 100, 8);
+            $netAmount = round($amount - $feeAmount, 8);
+            $rateUsed  = $rate;
+        }
+
         return [
             'id'                  => $d->id,
             'currency'            => $d->currency,
             'network'             => $d->network,
             'address'             => $d->address,
             'qr_image_url'        => $d->qr_image_path ? Storage::disk('public')->url($d->qr_image_path) : null,
-            'amount_expected'     => (string) $d->amount_expected,
+            'amount_expected'     => (string) $amount,
+            'fee_amount'          => (string) $feeAmount,
+            'net_amount'          => (string) $netAmount,
+            'commission_rate'     => $rateUsed,
             'tx_hash'             => $d->tx_hash,
             'status'              => $d->status,
             'client_confirmed_at' => $d->client_confirmed_at?->toIso8601String(),
