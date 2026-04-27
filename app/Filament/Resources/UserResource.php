@@ -281,8 +281,20 @@ class UserResource extends Resource
                     ->label('Transacciones')
                     ->icon('heroicon-o-banknotes')
                     ->color('info')
-                    ->url(fn (User $record): string => UserResource::getUrl('view', ['record' => $record]) . '#relation-transactions-tab')
-                    ->openUrlInNewTab(false),
+                    ->modalHeading(fn (User $record): string => "Transacciones — {$record->name}")
+                    ->modalWidth('7xl')
+                    ->modalContent(function (User $record) {
+                        $transactions = $record->transactions()
+                            ->orderByDesc('created_at')
+                            ->limit(50)
+                            ->get();
+
+                        return view('filament.modals.user-transactions', [
+                            'transactions' => $transactions,
+                        ]);
+                    })
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Cerrar'),
                 Action::make('assignEliteTier')
                     ->label('Asignar nivel')
                     ->icon('heroicon-o-trophy')
