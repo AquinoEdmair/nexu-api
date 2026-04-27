@@ -47,36 +47,36 @@ final class DemoFinancialSeeder extends Seeder
             ]);
 
             // 2. Crear 3 Usuarios en cadena de referidos
-            // User A (Inversor PRO)
-            $userA = $this->createUser('User A Pro', 'usera@example.com', $tierOro->id);
+            // Carlos Rodríguez (Patrocinador principal)
+            $userA = $this->createUser('Carlos Rodríguez', 'carlos.rodriguez@gmail.com', $tierOro->id);
             
-            // User B (Referido por A)
-            $userB = $this->createUser('User B Junior', 'userb@example.com', $tierBronce->id, $userA->referral_code);
+            // Elena Martínez (Referida por Carlos)
+            $userB = $this->createUser('Elena Martínez', 'elena.mtz@outlook.com', $tierBronce->id, $userA->referral_code);
             
-            // User C (Referido por B)
-            $userC = $this->createUser('User C Newbie', 'userc@example.com', $tierBronce->id, $userB->referral_code);
+            // Javier Soto (Referido por Elena)
+            $userC = $this->createUser('Javier Soto', 'javier.soto.inversiones@gmail.com', $tierBronce->id, $userB->referral_code);
 
-            // 3. Generar movimientos para User A
+            // 3. Generar movimientos para Carlos Rodríguez
             $this->createDeposit($userA, 12000.00); // Depósito grande
             $this->createYield($userA, 450.20);     // Rendimiento
 
-            // 4. Generar movimientos para User B
+            // 4. Generar movimientos para Elena Martínez
             $depB1 = $this->createDeposit($userB, 2500.00);
-            $this->applyReferralCommission($userA, $userB, $depB1, true); // Comisión para A (primera vez)
+            $this->applyReferralCommission($userA, $userB, $depB1, true); // Comisión para Carlos (primera vez)
 
             $this->createYield($userB, 125.50);
 
             $depB2 = $this->createDeposit($userB, 1000.00);
-            $this->applyReferralCommission($userA, $userB, $depB2, false); // Comisión para A (recurrente)
+            $this->applyReferralCommission($userA, $userB, $depB2, false); // Comisión para Carlos (recurrente)
 
-            // 5. Generar movimientos para User C
+            // 5. Generar movimientos para Javier Soto
             $depC1 = $this->createDeposit($userC, 500.00);
-            $this->applyReferralCommission($userB, $userC, $depC1, true); // Comisión para B
+            $this->applyReferralCommission($userB, $userC, $depC1, true); // Comisión para Elena
 
-            $this->createWithdrawal($userC, 100.00); // Retiro de C
+            $this->createWithdrawal($userC, 100.00); // Retiro de Javier
 
             // 6. Algunos ajustes de admin para ver diversidad
-            $this->createAdminAdjustment($userA, 1000.00, 'Bono de bienvenida');
+            $this->createAdminAdjustment($userA, 1000.00, 'Bono de bienvenida VIP');
         });
     }
 
