@@ -301,7 +301,7 @@ final class GoldService
                     return [
                         'title'    => $article['title'],
                         'excerpt'  => $article['description'],
-                        'date'     => now()->parse($article['publishedAt'])->diffForHumans(),
+                        'date'     => $article['publishedAt'],
                         'source'   => $article['source']['name'],
                         'url'      => $article['url'],
                         'category' => $this->detectCategory($article),
@@ -348,25 +348,25 @@ final class GoldService
         $text = strtolower(($article['title'] ?? '') . ' ' . ($article['description'] ?? ''));
 
         if (str_contains($text, 'banco central') || str_contains($text, 'central bank') || str_contains($text, 'reserva federal') || str_contains($text, 'fed ')) {
-            return 'Banco Central';
+            return 'centralBank';
         }
         if (str_contains($text, 'etf') || str_contains($text, 'fondo') || str_contains($text, 'fund')) {
-            return 'ETF / Fondos';
+            return 'etfFunds';
         }
         if (str_contains($text, 'geopolít') || str_contains($text, 'geopolit') || str_contains($text, 'guerra') || str_contains($text, 'war') || str_contains($text, 'tensión')) {
-            return 'Geopolítica';
+            return 'geopolitics';
         }
         if (str_contains($text, 'xau/usd') || str_contains($text, 'precio') || str_contains($text, 'price') || str_contains($text, 'cotización')) {
-            return 'XAU/USD';
+            return 'xauusd';
         }
         if (str_contains($text, 'token') || str_contains($text, 'blockchain') || str_contains($text, 'paxg') || str_contains($text, 'xaut') || str_contains($text, 'tether gold') || str_contains($text, 'digital gold') || str_contains($text, 'oro digital')) {
-            return 'Oro Digital';
+            return 'digitalGold';
         }
         if (str_contains($text, 'bitcoin') || str_contains($text, 'btc') || str_contains($text, 'crypto') || str_contains($text, 'cripto')) {
-            return 'Cripto';
+            return 'crypto';
         }
 
-        return 'XAU/USD';
+        return 'xauusd';
     }
 
 }
