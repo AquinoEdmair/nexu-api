@@ -90,16 +90,14 @@ final class MetricsController extends Controller
     public function activity(): JsonResponse
     {
         $activity = Cache::remember('metrics:recent_activity', 30, function () {
-            $realTransactions = Transaction::query()
+            return Transaction::query()
                 ->where('status', 'confirmed')
                 ->whereIn('type', ['deposit', 'withdrawal', 'yield', 'admin_adjustment', 'referral_commission'])
                 ->with('user:id,name')
                 ->latest()
                 ->limit(10)
-                ->get();
-
-            if ($realTransactions->count() > 0) {
-                return $realTransactions->map(function ($tx) {
+                ->get()
+                ->map(function ($tx) {
                     return [
                         'type' => $this->mapTransactionType($tx->type),
                         'amount' => (float) abs((float) $tx->net_amount),
@@ -108,22 +106,6 @@ final class MetricsController extends Controller
                         'time' => $tx->created_at->toIso8601String(),
                     ];
                 });
-            }
-
-            // Fallback: Si no hay transacciones reales, generamos actividad simulada para que el landing no esté vacío
-            // Usamos nombres realistas pero enmascarados
-            $names = ['Carlos R.', 'Elena M.', 'Javier S.', 'Admin', 'Sistema', 'Usuario VIP'];
-            $types = ['deposit', 'yield', 'yield', 'withdrawal'];
-            
-            return collect(range(1, 8))->map(function ($i) use ($names, $types) {
-                return [
-                    'type' => $types[array_rand($types)],
-                    'amount' => rand(100, 5000) / 10,
-                    'currency' => 'USD',
-                    'user' => $names[array_rand($names)],
-                    'time' => now()->subMinutes(rand(1, 120))->toIso8601String(),
-                ];
-            });
         });
 
         return response()->json([
