@@ -12,6 +12,7 @@ final class GoldService
 {
     private const CACHE_TTL_PRICE = 3600; // 1 hora
     private const CACHE_TTL_NEWS  = 14400; // 4 horas
+    private const GOLD_API_COM_URL = 'https://api.gold-api.com';
 
     /**
      * Obtiene el precio actual y el historial de GoldAPI.io
@@ -36,6 +37,10 @@ final class GoldService
         };
 
         $history = Cache::remember("gold:history:{$range}:{$priceSlot}", $ttl, function () use ($range, $currentPrice) {
+            $realHistory = $this->fetchRealHistory($range);
+            if ($realHistory) {
+                return $realHistory;
+            }
             return $this->buildHistory($range, $currentPrice['price']);
         });
 
@@ -51,7 +56,29 @@ final class GoldService
     /** @return array{price: float, change_24h: float} */
     private function fetchCurrentPrice(): array
     {
-        // Primary: Yahoo Finance — free, no key, real-time XAU/USD
+        // Primary: gold-api.com — requires API key
+        $goldApiComKey = config('services.gold_api_com.key');
+        if (!blank($goldApiComKey)) {
+            try {
+                $response = Http::timeout(5)->withHeaders([
+                    'x-api-key' => $goldApiComKey,
+                    'Content-Type' => 'application/json',
+                ])->get(self::GOLD_API_COM_URL . '/price/XAU');
+
+                if ($response->ok()) {
+                    $data = $response->json();
+                    return [
+                        'price'      => (float) ($data['price'] ?? 0),
+                        'change_24h' => round((float) ($data['chp'] ?? 0.0), 2),
+                    ];
+                }
+                Log::warning("gold-api.com Error: " . $response->body());
+            } catch (\Throwable $e) {
+                Log::error("GoldService gold-api.com failed: " . $e->getMessage());
+            }
+        }
+
+        // Secondary: Yahoo Finance — free, no key, real-time XAU/USD
         try {
             $response = Http::timeout(5)
                 ->withoutVerifying()
@@ -72,7 +99,7 @@ final class GoldService
             Log::warning("GoldService Yahoo Finance failed: " . $e->getMessage());
         }
 
-        // Secondary: metals.live — free, no key
+        // Tertiary: metals.live — free, no key
         try {
             $response = Http::timeout(5)->withoutVerifying()->get('https://api.metals.live/v1/spot');
 
@@ -89,13 +116,12 @@ final class GoldService
             Log::warning("GoldService metals.live failed: " . $e->getMessage());
         }
 
-        // Tertiary: goldapi.io — requires API key
-        $apiKey = config('services.goldapi.key');
-
-        if (!blank($apiKey)) {
+        // Quaternary: goldapi.io — old provider
+        $oldApiKey = config('services.goldapi.key');
+        if (!blank($oldApiKey)) {
             try {
                 $response = Http::timeout(5)->withoutVerifying()->withHeaders([
-                    'x-access-token' => $apiKey,
+                    'x-access-token' => $oldApiKey,
                     'Content-Type'   => 'application/json',
                 ])->get('https://www.goldapi.io/api/XAU/USD');
 
@@ -106,15 +132,79 @@ final class GoldService
                         'change_24h' => round((float) ($data['chp'] ?? 0.0), 2),
                     ];
                 }
-
-                Log::error("GoldAPI Error: " . $response->body());
             } catch (\Throwable $e) {
                 Log::error("GoldService goldapi.io failed: " . $e->getMessage());
             }
         }
 
         // Final fallback
-        return ['price' => 4700.00, 'change_24h' => 0.0];
+        return ['price' => 2400.00, 'change_24h' => 0.0];
+    }
+
+    /**
+     * Fetch real historical data from gold-api.com
+     */
+    private function fetchRealHistory(string $range): ?array
+    {
+        $apiKey = config('services.gold_api_com.key');
+        if (blank($apiKey)) {
+            return null;
+        }
+
+        [$unit, $count, $groupBy] = match($range) {
+            '1h'    => ['minutes', 60, 'minute'],
+            '1d'    => ['hours',   24, 'hour'],
+            '1w'    => ['days',    7,  'day'],
+            '1m'    => ['days',    30, 'day'],
+            default => ['days',    7,  'day'],
+        };
+
+        try {
+            $response = Http::timeout(5)->withHeaders([
+                'x-api-key' => $apiKey,
+            ])->get(self::GOLD_API_COM_URL . '/history', [
+                'symbol'         => 'XAU',
+                'startTimestamp' => now()->{"sub" . ucfirst($unit)}($count)->getTimestamp(),
+                'endTimestamp'   => now()->getTimestamp(),
+                'groupBy'        => $groupBy,
+                'aggregation'    => 'avg',
+                'orderBy'        => 'asc',
+            ]);
+
+            if ($response->ok()) {
+                $data = $response->json();
+                if (empty($data) || isset($data['error'])) {
+                    return null;
+                }
+
+                $mapped = [];
+                $dateField = $groupBy; // 'day', 'hour', etc.
+                $priceField = 'avg_price';
+
+                foreach ($data as $item) {
+                    if (!isset($item[$dateField]) || !isset($item[$priceField])) continue;
+                    
+                    $date = $item[$dateField];
+                    // Format date for frontend
+                    $carbonDate = now()->parse($date);
+                    $format = match($range) {
+                        '1h', '1d' => 'H:i',
+                        default => 'd M',
+                    };
+
+                    $mapped[] = [
+                        'date' => $carbonDate->format($format),
+                        'price' => (float) $item[$priceField],
+                    ];
+                }
+
+                return count($mapped) > 0 ? $mapped : null;
+            }
+        } catch (\Throwable $e) {
+            Log::warning("GoldService fetchRealHistory failed: " . $e->getMessage());
+        }
+
+        return null;
     }
 
     /**

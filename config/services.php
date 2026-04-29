@@ -48,6 +48,10 @@ return [
         'key' => env('GOLD_API_KEY'),
     ],
 
+    'gold_api_com' => [
+        'key' => env('GOLD_API_COM_KEY'),
+    ],
+
     'newsapi' => [
         'key' => env('NEWS_API_KEY'),
     ],
