@@ -57,7 +57,13 @@ final class AdminAdjustmentsRelationManager extends RelationManager
                         if (! $adminId) {
                             return '—';
                         }
-                        return Admin::find($adminId)?->name ?? "ID {$adminId}";
+                        if ($adminId === 'system') {
+                            return 'Sistema';
+                        }
+                        if (\Illuminate\Support\Str::isUuid($adminId)) {
+                            return Admin::find($adminId)?->name ?? "ID {$adminId}";
+                        }
+                        return "ID {$adminId}";
                     }),
 
                 TextColumn::make('previous_value')

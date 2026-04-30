@@ -169,7 +169,11 @@ final class ViewTransaction extends ViewRecord
                                     $adminId = preg_match('/^manual-(.+)-(\d+)$/', $record->external_tx_id, $m) ? $m[1] : null;
                                 }
                                 if (! $adminId) return '—';
-                                return Admin::find($adminId)?->name ?? "ID {$adminId}";
+                                if ($adminId === 'system') return 'Sistema';
+                                if (\Illuminate\Support\Str::isUuid($adminId)) {
+                                    return Admin::find($adminId)?->name ?? "ID {$adminId}";
+                                }
+                                return "ID {$adminId}";
                             }),
 
                         TextEntry::make('admin_email')
@@ -182,7 +186,11 @@ final class ViewTransaction extends ViewRecord
                                     $adminId = preg_match('/^manual-(.+)-(\d+)$/', $record->external_tx_id, $m) ? $m[1] : null;
                                 }
                                 if (! $adminId) return '—';
-                                return Admin::find($adminId)?->email ?? '—';
+                                if ($adminId === 'system') return 'system@nexu.io';
+                                if (\Illuminate\Support\Str::isUuid($adminId)) {
+                                    return Admin::find($adminId)?->email ?? '—';
+                                }
+                                return '—';
                             })
                             ->copyable(),
                     ]),

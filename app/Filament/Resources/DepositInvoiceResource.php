@@ -104,7 +104,9 @@ final class DepositInvoiceResource extends Resource
                             }
                             preg_match('/^manual-(.+)-(\d+)$/', $r->tx_hash, $m);
                             $adminId = $m[1] ?? null;
-                            return $adminId ? (Admin::find($adminId)?->name ?? "ID {$adminId}") : 'Manual';
+                            return $adminId && \Illuminate\Support\Str::isUuid($adminId)
+                                ? (Admin::find($adminId)?->name ?? "ID {$adminId}")
+                                : ($adminId === 'system' ? 'Sistema' : 'Manual');
                         }),
 
                     TextEntry::make('expires_at')
@@ -174,7 +176,9 @@ final class DepositInvoiceResource extends Resource
                         }
                         preg_match('/^manual-(?:cancel-)?(.+)-(\d+)$/', $r->tx_hash, $m);
                         $adminId = $m[1] ?? null;
-                        return $adminId ? (Admin::find($adminId)?->name ?? "ID {$adminId}") : 'Manual';
+                        return $adminId && \Illuminate\Support\Str::isUuid($adminId)
+                            ? (Admin::find($adminId)?->name ?? "ID {$adminId}")
+                            : ($adminId === 'system' ? 'Sistema' : 'Manual');
                     })
                     ->badge()
                     ->color(fn(string $state): string => $state === 'Automático' ? 'gray' : 'warning'),

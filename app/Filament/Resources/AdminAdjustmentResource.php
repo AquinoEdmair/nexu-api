@@ -79,7 +79,13 @@ final class AdminAdjustmentResource extends Resource
                         if (! $adminId) {
                             return '—';
                         }
-                        return Admin::find($adminId)?->name ?? "ID {$adminId}";
+                        if ($adminId === 'system') {
+                            return 'Sistema';
+                        }
+                        if (\Illuminate\Support\Str::isUuid($adminId)) {
+                            return Admin::find($adminId)?->name ?? "ID {$adminId}";
+                        }
+                        return "ID {$adminId}";
                     }),
 
                 TextColumn::make('previous_value')

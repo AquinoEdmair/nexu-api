@@ -215,33 +215,8 @@ final class ReferralService
      */
     public function awardPointsForYield(Transaction $yieldTx, string $yieldLogId): ?ElitePoint
     {
-        $exists = ElitePoint::where('user_id', $yieldTx->user_id)
-            ->where('transaction_id', $yieldTx->id)
-            ->where('description', "yield:{$yieldLogId}")
-            ->exists();
-
-        if ($exists) {
-            return null;
-        }
-
-        $user = User::with('eliteTier')->findOrFail($yieldTx->user_id);
-
-        $multiplier = $user->eliteTier !== null
-            ? (string) $user->eliteTier->multiplier
-            : '1.00';
-
-        $point = $this->creditPoints(
-            userId:        $user->id,
-            amount:        (string) $yieldTx->net_amount,
-            multiplier:    $multiplier,
-            transactionId: $yieldTx->id,
-            description:   "yield:{$yieldLogId}",
-            sourceUserId:  null,
-        );
-
-        RecalculateEliteTierJob::dispatch($user->id);
-
-        return $point;
+        // Yields no longer generate elite points as per recent requirements.
+        return null;
     }
 
     // ── Points history ────────────────────────────────────────────────────────

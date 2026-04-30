@@ -23,27 +23,6 @@ final class AwardPointsOnYield
      */
     public function handle(YieldApplied $event): void
     {
-        $yieldLogId = $event->yieldLog->id;
-
-        // Query all yield transactions linked to this log via reference columns.
-        $yieldTxs = Transaction::where('type', 'yield')
-            ->where('status', 'confirmed')
-            ->where('reference_type', 'yield_log')
-            ->where('reference_id', $yieldLogId)
-            ->cursor();
-
-        foreach ($yieldTxs as $tx) {
-            try {
-                $this->referralService->awardPointsForYield($tx, $yieldLogId);
-            } catch (Throwable $e) {
-                Log::error('AwardPointsOnYield: failed for transaction', [
-                    'yield_log_id'   => $yieldLogId,
-                    'transaction_id' => $tx->id,
-                    'user_id'        => $tx->user_id,
-                    'error'          => $e->getMessage(),
-                ]);
-                // Continue processing remaining transactions.
-            }
-        }
+        // Yields no longer generate elite points. Logic removed.
     }
 }

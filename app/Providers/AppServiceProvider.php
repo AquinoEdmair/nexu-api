@@ -14,7 +14,6 @@ use App\Events\WithdrawalApproved;
 use App\Events\WithdrawalRejected;
 use App\Events\WithdrawalRequested;
 use App\Events\YieldApplied;
-use App\Listeners\AwardPointsOnYield;
 use App\Listeners\LogCommissionConfigChange;
 use App\Listeners\NotifyAdminOnDeposit;
 use App\Listeners\NotifyAdminOnNewUser;
