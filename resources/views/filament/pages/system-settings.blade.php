@@ -48,6 +48,27 @@
                     @enderror
                 </div>
 
+                <hr class="border-gray-200 dark:border-white/10" />
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Comunidad Telegram
+                    </label>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                        Enlace a la comunidad oficial de Nexu en Telegram.
+                    </p>
+                    <x-filament::input.wrapper>
+                        <x-filament::input
+                            type="url"
+                            wire:model="telegramCommunityUrl"
+                            placeholder="https://t.me/nexu_comunidad"
+                        />
+                    </x-filament::input.wrapper>
+                    @error('telegramCommunityUrl')
+                        <p class="text-sm text-red-500 mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+
                 <div>
                     <x-filament::button type="submit">
                         Guardar

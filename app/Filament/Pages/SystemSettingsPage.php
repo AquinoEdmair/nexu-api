@@ -19,6 +19,7 @@ class SystemSettingsPage extends Page
 
     public string $adminNotificationEmail = '';
     public string $minimumDepositAmount   = '0';
+    public string $telegramCommunityUrl   = '';
 
     public static function canAccess(): bool
     {
@@ -29,6 +30,7 @@ class SystemSettingsPage extends Page
     {
         $this->adminNotificationEmail = SystemSetting::get('admin_notification_email');
         $this->minimumDepositAmount   = SystemSetting::get('minimum_deposit_amount', '0');
+        $this->telegramCommunityUrl   = SystemSetting::get('telegram_community_url', '');
     }
 
     public function save(): void
@@ -36,6 +38,7 @@ class SystemSettingsPage extends Page
         $this->validate([
             'adminNotificationEmail' => ['nullable', 'email', 'max:255'],
             'minimumDepositAmount'   => ['required', 'numeric', 'min:0', 'max:999999'],
+            'telegramCommunityUrl'   => ['nullable', 'url', 'max:500'],
         ]);
 
         SystemSetting::set(
@@ -48,6 +51,12 @@ class SystemSettingsPage extends Page
             key:         'minimum_deposit_amount',
             value:       $this->minimumDepositAmount,
             description: 'Monto mínimo en USD que acepta la plataforma por depósito.',
+        );
+
+        SystemSetting::set(
+            key:         'telegram_community_url',
+            value:       $this->telegramCommunityUrl ?: null,
+            description: 'Enlace a la comunidad de Telegram de Nexu.',
         );
 
         Notification::make()

@@ -44,6 +44,7 @@ Route::prefix('auth')->middleware('throttle:10,1')->group(function (): void {
 
 Route::post('/contact', [ContactMessageController::class, 'store']);
 Route::get('/team', [TeamMemberController::class, 'index']);
+Route::get('/config', [\App\Http\Controllers\Api\PublicConfigController::class, 'index']);
 
 // Email verification link from the email (signed URL, no auth)
 Route::get('/auth/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
