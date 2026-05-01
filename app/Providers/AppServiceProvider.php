@@ -68,7 +68,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(WithdrawalRequest::class, WithdrawalRequestPolicy::class);
         Gate::policy(CommissionConfig::class, CommissionConfigPolicy::class);
 
-
+        \App\Models\Campaign::observe(\App\Observers\CampaignObserver::class);
     }
 
     public function shouldDiscoverEvents(): bool
