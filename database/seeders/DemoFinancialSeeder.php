@@ -248,7 +248,8 @@ final class DemoFinancialSeeder extends Seeder
         $yieldLogUser = \App\Models\YieldLogUser::create([
             'yield_log_id' => $yieldLog->id,
             'user_id' => $user->id,
-            'amount_calculated' => $amountStr,
+            'balance_before' => '0.00000000',
+            'balance_after' => $amountStr,
             'amount_applied' => $amountStr,
             'status' => 'applied',
             'created_at' => $date,
