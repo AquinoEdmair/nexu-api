@@ -113,7 +113,7 @@ final class DemoFinancialSeeder extends Seeder
             $diffInDays = $startDate->diffInDays($endDate);
             if ($diffInDays < 1) $diffInDays = 1;
             
-            $randomDay = $startDate->copy()->addDays(rand(0, $diffInDays));
+            $randomDay = $startDate->copy()->addDays(rand(0, (int) $diffInDays));
             
             $this->createYield($user, round($amount, 2), $randomDay);
         }
