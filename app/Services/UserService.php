@@ -167,7 +167,7 @@ final class UserService
             ->limit(10)
             ->get();
 
-        $totalPoints   = (string) $user->elitePoints()->sum('points');
+        $totalPoints   = (string) $user->elitePoints()->active()->sum('points');
         $totalEarnings = (string) $user->referrals()->sum('total_earned');
 
         return new UserProfileDTO(

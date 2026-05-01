@@ -12,6 +12,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -235,6 +236,9 @@ final class ReferralService
             ->through(function (ElitePoint $point): array {
                 [$source, $amountUsd] = $this->resolvePointSource($point);
 
+                $today   = Carbon::today();
+                $expired = $point->expires_at !== null && $point->expires_at->lt($today);
+
                 return [
                     'id'                 => $point->id,
                     'points'             => number_format((float) $point->points, 2, '.', ''),
@@ -242,6 +246,8 @@ final class ReferralService
                     'amount_usd'         => $amountUsd,
                     'source_user_masked' => $point->sourceUser ? $this->maskEmail($point->sourceUser->email) : null,
                     'created_at'         => $point->created_at->toIso8601String(),
+                    'expires_at'         => $point->expires_at?->toDateString(),
+                    'is_expired'         => $expired,
                 ];
             });
     }
@@ -265,7 +271,7 @@ final class ReferralService
             ->whereHas('transactions', fn ($q) => $q->where('type', 'deposit')->where('status', 'confirmed'))
             ->count();
 
-        $totalPoints = (float) ElitePoint::where('user_id', $user->id)->sum('points');
+        $totalPoints = (float) ElitePoint::active()->where('user_id', $user->id)->sum('points');
 
         $totalPersonalDeposit = (float) Transaction::where('user_id', $user->id)
             ->where('type', 'deposit')
@@ -287,6 +293,22 @@ final class ReferralService
             : null;
 
         $progressPct = $tier !== null ? $tier->progressPct($totalPoints) : 0;
+
+        // Points expiring within the current calendar month.
+        $today          = Carbon::today();
+        $endOfMonth     = $today->copy()->endOfMonth()->toDateString();
+
+        $expiringPoints = (float) ElitePoint::active()
+            ->where('user_id', $user->id)
+            ->where('expires_at', '<=', $endOfMonth)
+            ->sum('points');
+
+        // The exact expiry date of the earliest-expiring active batch.
+        /** @var ElitePoint|null $firstExpiring */
+        $firstExpiring = ElitePoint::active()
+            ->where('user_id', $user->id)
+            ->orderBy('expires_at')
+            ->first();
 
         return [
             'code'      => $user->referral_code,
@@ -314,10 +336,14 @@ final class ReferralService
                 'points_to_next' => $pointsToNext !== null
                     ? number_format($pointsToNext, 2, '.', '')
                     : null,
-                'progress_pct' => $progressPct,
-                'tiers'        => $allTiers->map(fn($t) => [
-                    'name' => $t->name,
-                    'slug' => $t->slug,
+                'progress_pct'         => $progressPct,
+                'points_expiring_soon' => $expiringPoints > 0
+                    ? number_format($expiringPoints, 2, '.', '')
+                    : null,
+                'next_expiry_date'     => $firstExpiring?->expires_at?->toDateString(),
+                'tiers'                => $allTiers->map(fn($t) => [
+                    'name'       => $t->name,
+                    'slug'       => $t->slug,
                     'min_points' => (float) $t->min_points,
                 ])->toArray(),
             ],
@@ -447,12 +473,16 @@ final class ReferralService
     ): ElitePoint {
         $points = bcmul($amount, $multiplier, 2);
 
+        // Expiry: last day of (current month + 12 months), regardless of day.
+        $expiresAt = Carbon::today()->addMonths(12)->endOfMonth()->toDateString();
+
         return ElitePoint::create([
             'user_id'        => $userId,
             'points'         => $points,
             'transaction_id' => $transactionId,
             'description'    => $description,
             'source_user_id' => $sourceUserId,
+            'expires_at'     => $expiresAt,
         ]);
     }
 

@@ -140,4 +140,11 @@ Route::middleware(['auth:api', 'user.active'])->group(function (): void {
         Route::get('/earnings',       [ReferralController::class, 'earnings']);
         Route::get('/points-history', [ReferralController::class, 'pointsHistory']);
     });
+
+    // Campaigns
+    Route::prefix('campaigns')->group(function (): void {
+        Route::get('/active',             [\App\Http\Controllers\Api\CampaignController::class, 'active']);
+        Route::post('/{id}/view',         [\App\Http\Controllers\Api\CampaignController::class, 'view']);
+        Route::post('/{id}/action',       [\App\Http\Controllers\Api\CampaignController::class, 'action']);
+    });
 });

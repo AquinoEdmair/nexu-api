@@ -138,4 +138,16 @@ final class User extends Authenticatable implements MustVerifyEmail
     {
         $this->notify(new VerifyEmailNotification());
     }
+
+    /** @return HasMany<CampaignUserStatus, $this> */
+    public function campaignStatuses(): HasMany
+    {
+        return $this->hasMany(CampaignUserStatus::class);
+    }
+
+    /** @return HasMany<CampaignEvent, $this> */
+    public function campaignEvents(): HasMany
+    {
+        return $this->hasMany(CampaignEvent::class);
+    }
 }

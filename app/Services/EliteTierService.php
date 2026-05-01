@@ -21,7 +21,7 @@ final class EliteTierService
             return;
         }
 
-        $totalPoints = (float) ElitePoint::where('user_id', $user->id)->sum('points');
+        $totalPoints = (float) ElitePoint::active()->where('user_id', $user->id)->sum('points');
         $newTier     = $this->getTierForPoints($totalPoints);
 
         if ($newTier?->id !== $user->elite_tier_id) {
