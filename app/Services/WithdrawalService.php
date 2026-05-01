@@ -46,10 +46,22 @@ final class WithdrawalService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ((float) $dto->amount > (float) $wallet->balance_in_operation) {
+            $lockedBalance = Transaction::where('user_id', $user->id)
+                ->whereIn('type', ['deposit', 'yield', 'referral_commission', 'commission'])
+                ->where('status', 'confirmed')
+                ->where('available_at', '>', now())
+                ->sum('net_amount');
+
+            $availableBalance = bcsub((string) $wallet->balance_in_operation, (string) $lockedBalance, 8);
+
+            if ((float) $dto->amount > (float) $availableBalance) {
+                if ((float) $dto->amount <= (float) $wallet->balance_in_operation) {
+                    throw new \DomainException("No puedes retirar esta cantidad. Parte de tu saldo está en periodo de activación para garantizar la estabilidad de las operaciones. Saldo disponible para retiro: $ {$availableBalance}");
+                }
+                
                 throw new InsufficientBalanceException(
                     (float) $dto->amount,
-                    (float) $wallet->balance_in_operation
+                    (float) $availableBalance
                 );
             }
 

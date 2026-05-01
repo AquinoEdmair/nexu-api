@@ -31,16 +31,36 @@ final class Transaction extends Model
         'description',
         'reference_type',
         'reference_id',
+        'available_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'amount'     => 'decimal:8',
-            'fee_amount' => 'decimal:8',
-            'net_amount' => 'decimal:8',
-            'metadata'   => 'array',
+            'amount'       => 'decimal:8',
+            'fee_amount'   => 'decimal:8',
+            'net_amount'   => 'decimal:8',
+            'metadata'     => 'array',
+            'available_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Transaction $transaction) {
+            if (! $transaction->available_at && in_array($transaction->type, ['deposit', 'yield', 'referral_commission', 'commission'])) {
+                $lock = \App\Models\WithdrawalLock::where('type', $transaction->type)
+                    ->where('user_id', $transaction->user_id)
+                    ->first() 
+                    ?? \App\Models\WithdrawalLock::where('type', $transaction->type)
+                    ->whereNull('user_id')
+                    ->first();
+
+                $days = $lock ? $lock->days : 0;
+                $date = $transaction->created_at ? \Illuminate\Support\Carbon::parse($transaction->created_at) : now();
+                $transaction->available_at = $date->addDays($days);
+            }
+        });
     }
 
     // ── Scopes (legacy, fixed-type) ──────────────────────────────────────────

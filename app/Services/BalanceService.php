@@ -39,13 +39,31 @@ final class BalanceService
             return array_merge($base, [
                 'balance_in_operation' => '0.00000000',
                 'balance_total'        => '0.00000000',
+                'balance_activating'   => '0.00000000',
+                'balance_available'    => '0.00000000',
                 'currency'             => self::DEFAULT_CURRENCY,
             ]);
+        }
+
+        $activatingBalance = number_format(
+            (float) Transaction::where('user_id', $user->id)
+                ->whereIn('type', ['deposit', 'yield', 'referral_commission', 'commission'])
+                ->where('status', 'confirmed')
+                ->where('available_at', '>', now())
+                ->sum('net_amount'),
+            8, '.', ''
+        );
+
+        $availableBalance = bcsub((string) $wallet->balance_in_operation, $activatingBalance, 8);
+        if ((float) $availableBalance < 0) {
+            $availableBalance = '0.00000000';
         }
 
         return array_merge($base, [
             'balance_in_operation' => $wallet->balance_in_operation,
             'balance_total'        => $wallet->balance_total,
+            'balance_activating'   => $activatingBalance,
+            'balance_available'    => $availableBalance,
             'currency'             => self::DEFAULT_CURRENCY,
         ]);
     }
