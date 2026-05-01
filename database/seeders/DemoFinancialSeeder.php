@@ -159,6 +159,20 @@ final class DemoFinancialSeeder extends Seeder
         $wallet->increment('balance_in_operation', $amount);
         $wallet->increment('balance_total', $amount);
 
+        $depositRequest = \App\Models\DepositRequest::create([
+            'user_id' => $user->id,
+            'currency' => 'USDT',
+            'network' => 'TRC20',
+            'address' => 'T' . Str::random(33),
+            'amount_expected' => $amountStr,
+            'tx_hash' => 'manual-' . Str::random(12),
+            'status' => 'confirmed',
+            'client_confirmed_at' => $date,
+            'reviewed_at' => $date,
+            'created_at' => $date,
+            'updated_at' => $date,
+        ]);
+
         $tx = Transaction::create([
             'user_id' => $user->id,
             'wallet_id' => $wallet->id,
@@ -169,9 +183,13 @@ final class DemoFinancialSeeder extends Seeder
             'currency' => 'USDT',
             'status' => 'confirmed',
             'external_tx_id' => 'manual-' . Str::random(12),
+            'reference_type' => 'deposit_request',
+            'reference_id' => $depositRequest->id,
             'created_at' => $date,
             'updated_at' => $date,
         ]);
+
+        $depositRequest->update(['transaction_id' => $tx->id]);
 
         // Puntos Elite por depósito
         $multiplier = (float) ($user->eliteTier->multiplier ?? 1.0);
@@ -197,6 +215,29 @@ final class DemoFinancialSeeder extends Seeder
         $wallet->increment('balance_in_operation', $amount);
         $wallet->increment('balance_total', $amount);
 
+        $yieldLog = \App\Models\YieldLog::create([
+            'type' => 'daily_profit',
+            'value' => '1.5',
+            'scope' => 'all',
+            'status' => 'completed',
+            'users_count' => 1,
+            'total_applied' => $amountStr,
+            'applied_at' => $date,
+            'completed_at' => $date,
+            'created_at' => $date,
+            'updated_at' => $date,
+        ]);
+
+        $yieldLogUser = \App\Models\YieldLogUser::create([
+            'yield_log_id' => $yieldLog->id,
+            'user_id' => $user->id,
+            'amount_calculated' => $amountStr,
+            'amount_applied' => $amountStr,
+            'status' => 'applied',
+            'created_at' => $date,
+            'updated_at' => $date,
+        ]);
+
         $tx = Transaction::create([
             'user_id' => $user->id,
             'wallet_id' => $wallet->id,
@@ -206,6 +247,8 @@ final class DemoFinancialSeeder extends Seeder
             'net_amount' => $amountStr,
             'currency' => 'USD',
             'status' => 'confirmed',
+            'reference_type' => 'yield_log_user',
+            'reference_id' => $yieldLogUser->id,
             'created_at' => $date,
             'updated_at' => $date,
         ]);
