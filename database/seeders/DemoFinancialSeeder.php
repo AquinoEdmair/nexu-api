@@ -161,7 +161,13 @@ final class DemoFinancialSeeder extends Seeder
 
         $cryptoCurrency = \App\Models\CryptoCurrency::firstOrCreate(
             ['symbol' => 'USDT'],
-            ['name' => 'Tether US', 'network' => 'TRC20', 'is_active' => true, 'sort_order' => 1]
+            [
+                'name' => 'Tether US', 
+                'now_payments_code' => 'usdttrc20', 
+                'network' => 'TRC20', 
+                'is_active' => true, 
+                'sort_order' => 1
+            ]
         );
 
         $depositAddress = \App\Models\DepositAddress::firstOrCreate(
