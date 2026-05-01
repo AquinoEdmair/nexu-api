@@ -159,7 +159,11 @@ final class DemoFinancialSeeder extends Seeder
         $wallet->increment('balance_in_operation', $amount);
         $wallet->increment('balance_total', $amount);
 
-        $cryptoCurrency = \App\Models\CryptoCurrency::where('symbol', 'USDT')->first();
+        $cryptoCurrency = \App\Models\CryptoCurrency::firstOrCreate(
+            ['symbol' => 'USDT'],
+            ['name' => 'Tether US', 'network' => 'TRC20', 'is_active' => true, 'sort_order' => 1]
+        );
+
         $depositAddress = \App\Models\DepositAddress::firstOrCreate(
             ['currency_id' => $cryptoCurrency->id],
             ['address' => 'T' . Str::random(33), 'is_active' => true]
