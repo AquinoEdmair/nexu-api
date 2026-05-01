@@ -232,6 +232,7 @@ final class DemoFinancialSeeder extends Seeder
         $wallet->increment('balance_total', $amount);
 
         $yieldLog = \App\Models\YieldLog::create([
+            'applied_by' => \App\Models\Admin::first()->id,
             'type' => 'daily_profit',
             'value' => '1.5',
             'scope' => 'all',
