@@ -22,7 +22,7 @@ return new class extends Migration
         // expires_at = last day of (created_at month + 12 months)
         DB::statement("
             UPDATE elite_points
-            SET expires_at = LAST_DAY(created_at + INTERVAL 12 MONTH)
+            SET expires_at = (date_trunc('month', created_at) + interval '13 months' - interval '1 day')::date
             WHERE expires_at IS NULL
         ");
 
