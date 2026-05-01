@@ -159,8 +159,14 @@ final class DemoFinancialSeeder extends Seeder
         $wallet->increment('balance_in_operation', $amount);
         $wallet->increment('balance_total', $amount);
 
+        $depositAddress = \App\Models\DepositAddress::firstOrCreate(
+            ['currency' => 'USDT', 'network' => 'TRC20'],
+            ['address' => 'T' . Str::random(33), 'is_active' => true]
+        );
+
         $depositRequest = \App\Models\DepositRequest::create([
             'user_id' => $user->id,
+            'deposit_address_id' => $depositAddress->id,
             'currency' => 'USDT',
             'network' => 'TRC20',
             'address' => 'T' . Str::random(33),
