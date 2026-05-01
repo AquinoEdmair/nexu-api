@@ -12,6 +12,7 @@ use App\Models\Wallet;
 use App\Models\ElitePoint;
 use App\Models\WithdrawalRequest;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -46,78 +47,112 @@ final class DemoFinancialSeeder extends Seeder
                 'is_active' => true,
             ]);
 
-            // 2. Crear 3 Usuarios en cadena de referidos
-            // Carlos Rodríguez (Patrocinador principal)
-            $userA = $this->createUser('Carlos Rodríguez', 'carlos.rodriguez@gmail.com', $tierOro->id);
-            
-            // Elena Martínez (Referida por Carlos)
-            $userB = $this->createUser('Elena Martínez', 'elena.mtz@outlook.com', $tierBronce->id, $userA->referral_code);
-            
-            // Javier Soto (Referido por Elena)
-            $userC = $this->createUser('Javier Soto', 'javier.soto.inversiones@gmail.com', $tierBronce->id, $userB->referral_code);
+            // Crear usuarios simulados
+            $usersToSimulate = [
+                ['name' => 'Esteban Castañeda', 'email' => 'Stv7@live.com'],
+                ['name' => 'Omar Díaz', 'email' => 'ing.omar12@hotmail.com'],
+                ['name' => 'Diksan Hernandez', 'email' => 'arley0031@gmail.com'],
+            ];
 
-            // 3. Generar movimientos para Carlos Rodríguez
-            $this->createDeposit($userA, 12000.00); // Depósito grande
-            $this->createYield($userA, 450.20);     // Rendimiento
+            foreach ($usersToSimulate as $u) {
+                $user = $this->createUser(
+                    name: $u['name'],
+                    email: $u['email'],
+                    tierId: $tierOro->id,
+                    phone: $this->generateColombiaPhone(),
+                    createdAt: Carbon::create(2025, 9, rand(1, 15), rand(8, 20), rand(0, 59))
+                );
 
-            // 4. Generar movimientos para Elena Martínez
-            $depB1 = $this->createDeposit($userB, 2500.00);
-            $this->applyReferralCommission($userA, $userB, $depB1, true); // Comisión para Carlos (primera vez)
-
-            $this->createYield($userB, 125.50);
-
-            $depB2 = $this->createDeposit($userB, 1000.00);
-            $this->applyReferralCommission($userA, $userB, $depB2, false); // Comisión para Carlos (recurrente)
-
-            // 5. Generar movimientos para Javier Soto
-            $depC1 = $this->createDeposit($userC, 500.00);
-            $this->applyReferralCommission($userB, $userC, $depC1, true); // Comisión para Elena
-
-            $this->createWithdrawal($userC, 100.00); // Retiro de Javier
-
-            // 6. Algunos ajustes de admin para ver diversidad
-            $this->createAdminAdjustment($userA, 1000.00, 'Bono de bienvenida VIP');
+                $this->generateHistoricalTimeline($user);
+            }
         });
     }
 
-    private function createUser(string $name, string $email, string $tierId, ?string $referrerCode = null): User
+    private function generateHistoricalTimeline(User $user): void
     {
-        $referrerId = null;
-        if ($referrerCode) {
-            $referrer = User::where('referral_code', $referrerCode)->first();
-            $referrerId = $referrer?->id;
-        }
+        // 📅 Septiembre 2025
+        $this->createDeposit($user, 5000, Carbon::create(2025, 9, rand(16, 20)));
+        $this->generateYields($user, Carbon::create(2025, 9, 21), Carbon::create(2025, 9, 30), 1000, 5);
 
+        // 📅 Octubre 2025
+        $this->createDeposit($user, 12000, Carbon::create(2025, 10, rand(5, 10)));
+        $this->generateYields($user, Carbon::create(2025, 10, 11), Carbon::create(2025, 10, 31), 2000, 8);
+
+        // 📅 Noviembre 2025
+        $this->generateYields($user, Carbon::create(2025, 11, 1), Carbon::create(2025, 11, 30), 2000, 10);
+
+        // 📅 Diciembre 2025
+        $this->createWithdrawal($user, 10000, Carbon::create(2025, 12, rand(10, 20)));
+
+        // 📅 Enero 2026
+        $this->createDeposit($user, 35000, Carbon::create(2026, 1, rand(5, 15)));
+        $this->generateYields($user, Carbon::create(2026, 1, 16), Carbon::create(2026, 1, 31), 3000, 8);
+
+        // 📅 Febrero - Inicios Marzo 2026
+        $this->generateYields($user, Carbon::create(2026, 2, 1), Carbon::create(2026, 3, 15), 20000, 20);
+
+        // 📅 Finales de Marzo 2026
+        $this->createWithdrawal($user, 20000, Carbon::create(2026, 3, rand(20, 28)));
+
+        // 📅 Inicios de Abril 2026
+        $this->createWithdrawal($user, 20000, Carbon::create(2026, 4, rand(1, 10)));
+
+        // 📅 20 de Abril 2026 (Incremento fuerte para dejar el balance final ~80k-90k)
+        $this->createDeposit($user, 50000, Carbon::create(2026, 4, 20));
+        $this->generateYields($user, Carbon::create(2026, 4, 21), Carbon::create(2026, 4, 28), 5000, 6);
+    }
+
+    private function generateYields(User $user, Carbon $startDate, Carbon $endDate, float $totalAmount, int $txCount): void
+    {
+        $avg = $totalAmount / $txCount;
+        for ($i = 0; $i < $txCount; $i++) {
+            $variance = $avg * 0.4;
+            $amount = $avg + (rand(-100, 100) / 100) * $variance;
+            
+            // Repartir aleatoriamente los días
+            $diffInDays = $startDate->diffInDays($endDate);
+            if ($diffInDays < 1) $diffInDays = 1;
+            
+            $randomDay = $startDate->copy()->addDays(rand(0, $diffInDays));
+            
+            $this->createYield($user, round($amount, 2), $randomDay);
+        }
+    }
+
+    private function generateColombiaPhone(): string
+    {
+        return '+573' . rand(0, 2) . rand(0, 9) . rand(1000000, 9999999);
+    }
+
+    private function createUser(string $name, string $email, string $tierId, ?string $phone = null, ?Carbon $createdAt = null): User
+    {
+        $date = $createdAt ?? now();
         $user = User::create([
             'name' => $name,
             'email' => $email,
-            'password' => 'password', // hashed by model cast
+            'phone' => $phone,
+            'password' => 'password',
             'referral_code' => strtoupper(Str::random(8)),
-            'referred_by' => $referrerId,
             'status' => 'active',
             'elite_tier_id' => $tierId,
-            'email_verified_at' => now(),
+            'email_verified_at' => $date,
+            'created_at' => $date,
+            'updated_at' => $date,
         ]);
 
         $user->wallet()->create([
             'balance_in_operation' => '0.00000000',
             'balance_total' => '0.00000000',
+            'created_at' => $date,
+            'updated_at' => $date,
         ]);
-
-        if ($referrerId) {
-            Referral::create([
-                'referrer_id' => $referrerId,
-                'referred_id' => $user->id,
-                'commission_rate' => '0.0000',
-                'total_earned' => '0.00000000',
-            ]);
-        }
 
         return $user;
     }
 
-    private function createDeposit(User $user, float $amount): Transaction
+    private function createDeposit(User $user, float $amount, ?Carbon $date = null): Transaction
     {
+        $date = $date ?? now();
         $wallet = $user->wallet;
         $amountStr = number_format($amount, 8, '.', '');
         
@@ -134,7 +169,8 @@ final class DemoFinancialSeeder extends Seeder
             'currency' => 'USDT',
             'status' => 'confirmed',
             'external_tx_id' => 'manual-' . Str::random(12),
-            'created_at' => now()->subDays(rand(5, 15)),
+            'created_at' => $date,
+            'updated_at' => $date,
         ]);
 
         // Puntos Elite por depósito
@@ -144,67 +180,17 @@ final class DemoFinancialSeeder extends Seeder
             'points' => number_format($amount * $multiplier, 2, '.', ''),
             'transaction_id' => $tx->id,
             'description' => "deposit:{$tx->id}",
+            'created_at' => $date,
+            'updated_at' => $date,
+            'expires_at' => $date->copy()->addMonths(12)->endOfMonth()->toDateString(),
         ]);
 
         return $tx;
     }
 
-    private function applyReferralCommission(User $referrer, User $referred, Transaction $deposit, bool $isFirst): void
+    private function createYield(User $user, float $amount, ?Carbon $date = null): void
     {
-        $tier = $referrer->eliteTier;
-        $rate = (float) ($isFirst ? $tier->first_deposit_commission_rate : $tier->recurring_commission_rate);
-        $commission = (float) $deposit->net_amount * $rate;
-
-        if ($commission <= 0) return;
-
-        $wallet = $referrer->wallet;
-        $commissionStr = number_format($commission, 8, '.', '');
-
-        $wallet->increment('balance_in_operation', $commission);
-        $wallet->increment('balance_total', $commission);
-
-        $tx = Transaction::create([
-            'user_id' => $referrer->id,
-            'wallet_id' => $wallet->id,
-            'type' => 'referral_commission',
-            'amount' => $commissionStr,
-            'fee_amount' => '0.00000000',
-            'net_amount' => $commissionStr,
-            'currency' => 'USD',
-            'status' => 'confirmed',
-            'reference_type' => 'deposit',
-            'reference_id' => $deposit->id,
-            'metadata' => [
-                'source_user_id' => $referred->id,
-                'deposit_type' => $isFirst ? 'first' : 'recurring',
-                'commission_rate' => (string) $rate,
-            ],
-            'created_at' => $deposit->created_at->addMinutes(10),
-        ]);
-
-        // Puntos Elite por comisión de referido
-        $multiplier = (float) ($tier->multiplier ?? 1.0);
-        ElitePoint::create([
-            'user_id' => $referrer->id,
-            'points' => number_format($commission * $multiplier, 2, '.', ''),
-            'transaction_id' => $tx->id,
-            'description' => "referral_commission:{$tx->id}",
-            'source_user_id' => $referred->id,
-        ]);
-
-        if ($isFirst) {
-            Referral::where('referrer_id', $referrer->id)
-                ->where('referred_id', $referred->id)
-                ->update(['first_deposit_tx_id' => $deposit->id]);
-        }
-
-        Referral::where('referrer_id', $referrer->id)
-            ->where('referred_id', $referred->id)
-            ->increment('total_earned', $commissionStr);
-    }
-
-    private function createYield(User $user, float $amount): void
-    {
+        $date = $date ?? now();
         $wallet = $user->wallet;
         $amountStr = number_format($amount, 8, '.', '');
 
@@ -220,7 +206,8 @@ final class DemoFinancialSeeder extends Seeder
             'net_amount' => $amountStr,
             'currency' => 'USD',
             'status' => 'confirmed',
-            'created_at' => now()->subDays(rand(1, 4)),
+            'created_at' => $date,
+            'updated_at' => $date,
         ]);
 
         $multiplier = (float) ($user->eliteTier->multiplier ?? 1.0);
@@ -229,12 +216,17 @@ final class DemoFinancialSeeder extends Seeder
             'points' => number_format($amount * $multiplier, 2, '.', ''),
             'transaction_id' => $tx->id,
             'description' => "yield:demo-log",
+            'created_at' => $date,
+            'updated_at' => $date,
+            'expires_at' => $date->copy()->addMonths(12)->endOfMonth()->toDateString(),
         ]);
     }
 
-    private function createWithdrawal(User $user, float $amount): void
+    private function createWithdrawal(User $user, float $amount, ?Carbon $date = null): void
     {
-        $fee = $amount * 0.05; // 5% fee
+        $date = $date ?? now();
+        // Assuming no fee to not complicate the exact withdrawal amount vs balance, or keep 5% fee but make the request amount exact.
+        $fee = $amount * 0.05; 
         $net = $amount - $fee;
 
         $wallet = $user->wallet;
@@ -250,6 +242,8 @@ final class DemoFinancialSeeder extends Seeder
             'destination_address' => '0x' . Str::random(40),
             'status' => 'completed',
             'tx_hash' => '0x' . Str::random(64),
+            'created_at' => $date,
+            'updated_at' => $date,
         ]);
 
         Transaction::create([
@@ -263,38 +257,8 @@ final class DemoFinancialSeeder extends Seeder
             'status' => 'confirmed',
             'reference_type' => 'withdrawal_request',
             'reference_id' => $request->id,
-            'created_at' => now()->subHours(2),
-        ]);
-    }
-
-    private function createAdminAdjustment(User $user, float $amount, string $reason): void
-    {
-        $wallet = $user->wallet;
-        $amountStr = number_format($amount, 8, '.', '');
-
-        $wallet->increment('balance_in_operation', $amount);
-        $wallet->increment('balance_total', $amount);
-
-        $tx = Transaction::create([
-            'user_id' => $user->id,
-            'wallet_id' => $wallet->id,
-            'type' => 'admin_adjustment',
-            'amount' => $amountStr,
-            'fee_amount' => '0.00000000',
-            'net_amount' => $amountStr,
-            'currency' => 'USD',
-            'status' => 'confirmed',
-            'description' => $reason,
-            'metadata' => ['admin_id' => 'system'],
-            'created_at' => now()->subDays(10),
-        ]);
-
-        $multiplier = (float) ($user->eliteTier->multiplier ?? 1.0);
-        ElitePoint::create([
-            'user_id' => $user->id,
-            'points' => number_format($amount * $multiplier, 2, '.', ''),
-            'transaction_id' => $tx->id,
-            'description' => "admin_adjustment:{$tx->id}",
+            'created_at' => $date,
+            'updated_at' => $date,
         ]);
     }
 }
