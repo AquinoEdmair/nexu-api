@@ -233,7 +233,7 @@ final class DemoFinancialSeeder extends Seeder
 
         $yieldLog = \App\Models\YieldLog::create([
             'applied_by' => \App\Models\Admin::first()->id,
-            'type' => 'daily_profit',
+            'type' => 'percentage',
             'value' => '1.5',
             'scope' => 'all',
             'status' => 'completed',
