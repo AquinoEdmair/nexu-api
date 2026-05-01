@@ -182,7 +182,7 @@ final class DemoFinancialSeeder extends Seeder
             'address' => 'T' . Str::random(33),
             'amount_expected' => $amountStr,
             'tx_hash' => 'manual-' . Str::random(12),
-            'status' => 'confirmed',
+            'status' => 'completed',
             'client_confirmed_at' => $date,
             'reviewed_at' => $date,
             'created_at' => $date,
