@@ -29,6 +29,11 @@ final class CryptoCurrencyResource extends Resource
     protected static ?string $modelLabel      = 'Moneda';
     protected static ?string $pluralModelLabel = 'Monedas cripto';
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public static function form(Form $form): Form
     {
         return $form->schema([
