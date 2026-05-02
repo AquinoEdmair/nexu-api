@@ -23,6 +23,8 @@ return [
         'http://localhost:3000',
         'http://localhost:3001',
         'https://nexu-web-production.up.railway.app',
+        'https://nexu.capital',
+        'https://www.nexu.capital',
         env('FRONTEND_URL'),
     ]),
 
