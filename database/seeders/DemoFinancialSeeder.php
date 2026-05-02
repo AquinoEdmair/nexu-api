@@ -207,6 +207,25 @@ final class DemoFinancialSeeder extends Seeder
 
         $depositRequest->update(['transaction_id' => $tx->id]);
 
+        $invoice = \App\Models\DepositInvoice::create([
+            'user_id' => $user->id,
+            'invoice_id' => 'INV-' . Str::upper(Str::random(8)),
+            'currency' => 'USDT',
+            'network' => 'TRC20',
+            'address' => 'T' . Str::random(33),
+            'qr_code_url' => 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=example',
+            'status' => 'completed',
+            'amount_expected' => $amountStr,
+            'pay_amount' => $amountStr,
+            'amount_received' => $amountStr,
+            'tx_hash' => $tx->external_tx_id,
+            'transaction_id' => $tx->id,
+            'expires_at' => $date->copy()->addHours(2),
+            'completed_at' => $date,
+            'created_at' => $date,
+            'updated_at' => $date,
+        ]);
+
         // Puntos Elite por depósito
         $multiplier = (float) ($user->eliteTier->multiplier ?? 1.0);
         ElitePoint::create([
