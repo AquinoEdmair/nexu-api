@@ -22,14 +22,13 @@ return [
     'allowed_origins' => array_filter([
         'http://localhost:3000',
         'http://localhost:3001',
-        'https://nexu-web-production.up.railway.app',
         'https://nexu.capital',
         'https://www.nexu.capital',
         env('FRONTEND_URL'),
     ]),
 
     'allowed_origins_patterns' => [
-        '#^https://.*\.up\.railway\.app$#',
+        '#^https://.*\.nexu\.capital$#',
     ],
 
     'allowed_headers' => ['*'],
