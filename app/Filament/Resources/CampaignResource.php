@@ -96,7 +96,17 @@ final class CampaignResource extends Resource
                                 'custom'      => 'Personalizado (Avanzado)',
                             ])
                             ->required()
-                            ->label('Segmento Objetivo'),
+                            ->label('Segmento Objetivo')
+                            ->live(),
+
+                        Forms\Components\Select::make('custom_target_query')
+                            ->multiple()
+                            ->searchable()
+                            ->getSearchResultsUsing(fn (string $search): array => \App\Models\User::where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%")->limit(50)->pluck('name', 'id')->toArray())
+                            ->getOptionLabelsUsing(fn (array $values): array => \App\Models\User::whereIn('id', $values)->pluck('name', 'id')->toArray())
+                            ->label('Seleccionar Usuarios')
+                            ->visible(fn (Forms\Get $get): bool => $get('target_segment') === 'custom')
+                            ->required(fn (Forms\Get $get): bool => $get('target_segment') === 'custom'),
 
                         Forms\Components\Select::make('display_frequency')
                             ->options([

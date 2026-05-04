@@ -43,8 +43,11 @@ final class CampaignTargetingService
                 $query->whereNotNull('referred_by');
                 break;
             case 'custom':
-                // Logic for custom JSON query
-                // $this->applyCustomFilters($query, $campaign->custom_target_query);
+                if (is_array($campaign->custom_target_query) && !empty($campaign->custom_target_query)) {
+                    $query->whereIn('id', $campaign->custom_target_query);
+                } else {
+                    $query->whereRaw('1 = 0'); // Empty query if no users selected
+                }
                 break;
         }
 

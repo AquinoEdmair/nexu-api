@@ -26,7 +26,7 @@ final class ComputeCampaignTargetsJob implements ShouldQueue
 
         // If the channel includes 'email' or 'both', dispatch the email job here
         if (in_array($this->campaign->channel, ['email', 'both'], true)) {
-            // DispatchCampaignEmailsJob::dispatch($this->campaign);
+            DispatchCampaignEmailsJob::dispatch($this->campaign);
         }
     }
 }

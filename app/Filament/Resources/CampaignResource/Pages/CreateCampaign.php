@@ -10,4 +10,9 @@ use Filament\Resources\Pages\CreateRecord;
 final class CreateCampaign extends CreateRecord
 {
     protected static string $resource = CampaignResource::class;
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
 }
