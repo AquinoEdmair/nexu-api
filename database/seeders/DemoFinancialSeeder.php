@@ -49,7 +49,7 @@ final class DemoFinancialSeeder extends Seeder
 
             // Crear usuarios simulados
             $usersToSimulate = [
-                ['name' => 'Esteban Castañeda', 'email' => 'Stv7@live.com'],
+                ['name' => 'Esteban Castañeda', 'email' => 'stv7@live.com'],
                 ['name' => 'Omar Díaz', 'email' => 'ing.omar12@hotmail.com'],
                 ['name' => 'Diksan Hernandez', 'email' => 'arley0031@gmail.com'],
             ];
@@ -129,7 +129,7 @@ final class DemoFinancialSeeder extends Seeder
         $date = $createdAt ?? now();
         $user = User::create([
             'name' => $name,
-            'email' => $email,
+            'email' => strtolower($email),
             'phone' => $phone,
             'password' => 'password',
             'referral_code' => strtoupper(Str::random(8)),

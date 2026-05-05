@@ -31,7 +31,7 @@ final class UserAuthService
     public function login(array $credentials): array
     {
         /** @var User|null $user */
-        $user = User::where('email', $credentials['email'])->first();
+        $user = User::whereRaw('LOWER(email) = ?', [strtolower($credentials['email'])])->first();
 
         if (!$user || !Hash::check($credentials['password'], $user->password)) {
             throw ValidationException::withMessages([

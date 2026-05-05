@@ -21,7 +21,7 @@ final class RegisterRequest extends FormRequest
     {
         return [
             'name'          => ['required', 'string', 'max:100'],
-            'email'         => ['required', 'string', 'lowercase', 'email', 'max:150', 'unique:users,email'],
+            'email'         => ['required', 'string', 'email', 'max:150', 'unique:users,email'],
             'password'      => ['required', 'string', 'confirmed', Password::min(8)->mixedCase()->numbers()],
             'phone'         => ['nullable', 'string', 'max:20'],
             'referral_code' => [
